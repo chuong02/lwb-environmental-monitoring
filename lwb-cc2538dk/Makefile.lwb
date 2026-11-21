@@ -1,0 +1,46 @@
+# LWB/Glossy module include file for CC2538DK.
+# Use from an app Makefile with:
+#   include ../../Makefile.lwb
+# and build with TARGET=cc2538dk.
+
+LWB_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+
+# --------------------------------------------------------------------
+# CC2538 low-level driver sources for Glossy/LWB
+# --------------------------------------------------------------------
+# These are low-level CC2538 radio/crypto sources used by Glossy.
+# They are not the normal Contiki NETSTACK radio driver.
+PROJECTDIRS += $(LWB_DIR)/dev/cc2538
+PROJECTDIRS += $(LWB_DIR)/dev/cc2538/dev
+
+PROJECT_SOURCEFILES += cc2538-rf.c
+PROJECT_SOURCEFILES += cc2592.c
+PROJECT_SOURCEFILES += crypto.c
+
+# --------------------------------------------------------------------
+# Node ID support for CC2538DK
+# --------------------------------------------------------------------
+# If your Contiki tree already provides node_id/node_id_burn(), set
+# LWB_USE_CONTIKI_NODE_ID=1 in the app Makefile before including this file.
+ifneq ($(LWB_USE_CONTIKI_NODE_ID),1)
+  PROJECTDIRS += $(LWB_DIR)/platform/cc2538dk-lwb
+  PROJECT_SOURCEFILES += node-id.c
+endif
+
+# --------------------------------------------------------------------
+# Glossy and LWB core
+# --------------------------------------------------------------------
+PROJECTDIRS += $(LWB_DIR)/net/glossy
+PROJECTDIRS += $(LWB_DIR)/net/lwb
+
+PROJECT_SOURCEFILES += glossy.c
+PROJECT_SOURCEFILES += lwb.c
+PROJECT_SOURCEFILES += lwb-g-sync.c
+PROJECT_SOURCEFILES += lwb-g-rr.c
+PROJECT_SOURCEFILES += lwb-sched-compressor.c
+
+ifdef LWB_SCHEDULER_SOURCE
+  PROJECT_SOURCEFILES += $(LWB_SCHEDULER_SOURCE)
+else
+  PROJECT_SOURCEFILES += lwb-scheduler-static.c
+endif

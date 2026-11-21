@@ -1,0 +1,25 @@
+{
+  "title": "LWB gateway (Raspberry Pi)",
+  "databases": {
+    "lwb": {
+      "queries": {
+        "uart_quality_last_hour": {
+          "title": "Chất lượng UART 1 giờ qua (dòng tốt / hỏng)",
+          "sql": "SELECT checksum, COUNT(*) AS lines FROM events WHERE recv_ts_utc >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-1 hour') GROUP BY checksum"
+        },
+        "latest_per_node": {
+          "title": "Bản tin mới nhất của từng node",
+          "sql": "SELECT source, record_type, MAX(recv_ts_utc) AS last_seen, COUNT(*) AS n FROM events WHERE record_type IN ('SENSOR_DATA','LOCAL') GROUP BY source, record_type ORDER BY source"
+        },
+        "perf_summary_latest_run": {
+          "title": "PERF_SUMMARY của run mới nhất",
+          "sql": "SELECT recv_ts_utc, source, json_extract(payload_json,'$.received') AS received, json_extract(payload_json,'$.expected') AS expected, json_extract(payload_json,'$.final') AS final, json_extract(payload_json,'$.flood_delivery_x100')/100.0 AS flood_delivery_pct, json_extract(payload_json,'$.delay_avg_us')/1000.0 AS delay_avg_ms FROM events WHERE record_type='PERF_SUMMARY' AND run=(SELECT MAX(run) FROM events WHERE record_type='PERF_SUMMARY') ORDER BY id DESC LIMIT 200"
+        },
+        "mqtt_backlog": {
+          "title": "Số bản ghi chưa gửi lên EMQX",
+          "sql": "SELECT published, COUNT(*) FROM events GROUP BY published"
+        }
+      }
+    }
+  }
+}

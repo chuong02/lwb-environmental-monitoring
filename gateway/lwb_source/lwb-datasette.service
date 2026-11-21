@@ -1,0 +1,13 @@
+[Unit]
+Description=Datasette web viewer for the LWB gateway SQLite (read-only)
+After=network-online.target
+
+[Service]
+Type=simple
+User=pi
+ExecStart=/opt/lwb-gateway/.venv/bin/datasette serve /var/lib/lwb-gateway/lwb.db -h 0.0.0.0 -p 8001 --setting sql_time_limit_ms 5000 --setting max_returned_rows 5000 --metadata /opt/lwb-gateway/datasette-metadata.json
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

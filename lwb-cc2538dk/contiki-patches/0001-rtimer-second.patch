@@ -1,0 +1,5 @@
+--- a/cpu/cc2538/rtimer-arch.h
++++ b/cpu/cc2538/rtimer-arch.h
+@@ -66 +66 @@
+-#define RTIMER_ARCH_SECOND 32768S
++#define RTIMER_ARCH_SECOND 32768UL

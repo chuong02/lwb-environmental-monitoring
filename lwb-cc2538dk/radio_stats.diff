@@ -1,0 +1,655 @@
+diff --git a/README_VI.md b/README_VI.md
+index 5f4f891..22af08a 100644
+--- a/README_VI.md
++++ b/README_VI.md
+@@ -16,6 +16,8 @@ các cờ đều tắt: firmware chạy y như bản 12/11** (đã đối chiế
+ | `FRESH_ONLY` | = `GEN_MODE` | 1 = không tạo gói (không tăng seq) khi chưa synced hoặc chưa có stream ack; nếu hàng đợi còn gói cũ thì bỏ gói cũ, giữ gói mới |
+ | `PACKETS` | 100 | **0 = chế độ liên tục**: phát vô hạn, không có bước chốt/drain |
+ | `REPORT_EVERY` | 60 | Chỉ khi `PACKETS=0`: cứ mỗi `REPORT_EVERY` gói DATA, một lượt phát kế tiếp dành cho REPORT cộng dồn (5..10000) |
++| `RADIO_STATS` | 0 | 1 = đo radio duty cycle bằng phần mềm: cộng thời gian radio bật giữa `glossy_start()` và `glossy_stop()` của mọi flood; in `PERF_RADIO` mỗi `RADIO_STATS_PERIOD` vòng. 0 = không có mã thêm, không có dòng mới |
++| `RADIO_STATS_PERIOD` | 12 | Chỉ khi `RADIO_STATS=1`: số vòng giữa hai dòng `PERF_RADIO` (1..10000; 12 vòng = 60 s) |
+ 
+ Khác biệt cần biết:
+ 
+@@ -44,6 +46,10 @@ Khác biệt cần biết:
+   không tiêu seq. `tools/analyze_logs.py` chưa phân tích log liên tục (`expected,0` → `expected_count_unavailable`);
+   dùng `PERF_SUMMARY`/`PERF_REPORT` để giám sát. Với `PACKETS=0` Makefile đặt `UART_LINE_BUF_LEN=768` (dòng `PERF_SUMMARY` dài hơn 512 ký tự).
+ - Mọi node (HOST, SOURCE, RELAY) trong một lượt phải build với **cùng** `PACKETS`, `GEN_MODE`, `FRESH_ONLY`, `REPORT_EVERY`.
++- `RADIO_STATS=1` thêm hook ở hai đầu mỗi flood trong `net/glossy/glossy.c` (không chạm đường relay/TX-trigger) và dòng
++  `PERF_RADIO,run,..,node,..,role,..,elapsed_ms,..,radio_on_ms,..,duty_x10000,..,floods,..,avg_on_per_flood_us,..,tx_on_ms,..,cum_*`
++  (chu kỳ vừa qua + cộng dồn từ lúc khởi động; `tx_on_ms` là ước lượng). Có thể bật trên từng node độc lập (không đổi gói/giao thức). Duty cycle tính toán cho 1 HOST + 4 SOURCE,
++  vòng 5 s, N=3 ≈ 1,6 % (chưa đo); công thức, điểm bật/tắt radio, cách so với bài LWB/Glossy: `docs/RADIO_STATS_NOTES.md`. Gateway: thêm `PERF_RADIO` vào `KNOWN_TYPES`.
+ 
+ **Build cho 5 kit** (HOST=1, SOURCE=2..5; sửa `--contiki`, `--out` cho đúng máy build):
+ 
+@@ -216,6 +222,7 @@ Contiki cũ không tự theo dõi mọi thay đổi của cờ compiler.
+ | Make variable | Mặc định | Ý nghĩa |
+ |---|---:|---|
+ | `PACKETS` | 100 | Số lượt tạo dữ liệu theo lịch, 1..2000; dùng 100 để chạy thử. `0` = chế độ liên tục (xem mục "Cập nhật 15/11") |
++| `RADIO_STATS`, `RADIO_STATS_PERIOD` | 0, 12 | Đo radio duty cycle bằng phần mềm (`PERF_RADIO`); xem `docs/RADIO_STATS_NOTES.md` |
+ | `GEN_MODE`, `GEN_LEAD_MS`, `SENSOR_BUDGET_MS`, `FRESH_ONLY`, `REPORT_EVERY` | 0, 250, 150, `GEN_MODE`, 60 | Đồng bộ pha tạo gói / chống dồn hàng đợi / REPORT liên tục; xem mục "Cập nhật 15/11" |
+ | `IPI` | 5 | Giây giữa hai lượt; 5..3600, bội số của 5 với scheduler hiện tại |
+ | `SOURCE_IDS` | 2 | Danh sách nguồn dự kiến, ví dụ `3` hoặc `3:4:5` |
+diff --git a/apps/lwb-cc2538dk-env/Makefile b/apps/lwb-cc2538dk-env/Makefile
+index 1468893..72968a1 100644
+--- a/apps/lwb-cc2538dk-env/Makefile
++++ b/apps/lwb-cc2538dk-env/Makefile
+@@ -41,6 +41,10 @@ SENSOR_BUDGET_MS ?= 150
+ FRESH_ONLY ?= $(GEN_MODE)
+ # PACKETS=0 (continuous): SOURCE sends a cumulative REPORT after every REPORT_EVERY DATA packets.
+ REPORT_EVERY ?= 60
++# RADIO_STATS: 1 = software radio duty cycle (Glossy start/stop timestamps) printed as PERF_RADIO every
++# RADIO_STATS_PERIOD rounds. 0 = no code, glossy.c is compiled as before.
++RADIO_STATS ?= 0
++RADIO_STATS_PERIOD ?= 12
+ # 1 = append *HH (XOR checksum) to every UART line; gateway drops corrupted lines
+ UART_CHECKSUM ?= 1
+ CONTIKI_WITH_RIME = 1
+@@ -65,6 +69,9 @@ override DEFINES += LWB_CONF_N_SYNC=$(N_SYNC) LWB_CONF_N_RR=$(N_DATA_TX)
+ override DEFINES += UP_GEN_MODE=$(GEN_MODE) UP_GEN_LEAD_MS=$(GEN_LEAD_MS)
+ override DEFINES += UP_SENSOR_BUDGET_MS=$(SENSOR_BUDGET_MS)
+ override DEFINES += UP_FRESH_ONLY=$(FRESH_ONLY) UP_REPORT_EVERY=$(REPORT_EVERY)
++override DEFINES += UP_RADIO_STATS=$(RADIO_STATS) UP_RADIO_STATS_PERIOD=$(RADIO_STATS_PERIOD)
++# The accounting hooks in net/glossy/glossy.c are compiled only for RADIO_STATS=1.
++override DEFINES += GLOSSY_RADIO_STATS_CONF=$(RADIO_STATS)
+ # lwb_get_next_round_ticks() is compiled into net/lwb only for GEN_MODE=1.
+ override DEFINES += LWB_ROUND_TIMING_CONF=$(GEN_MODE)
+ # Continuous mode prints PERF_SUMMARY with 32-bit counters (~520-550 chars worst case);
+diff --git a/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c b/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
+index 410d9bf..db4d25e 100644
+--- a/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
++++ b/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
+@@ -12,6 +12,8 @@
+  *   FRESH_ONLY=1  no packet while unsynced / without stream ack; stale queued packet is
+  *                 replaced by the new one (counted as "superseded").
+  *   PACKETS=0     continuous mode: unbounded DATA, cumulative REPORT every REPORT_EVERY.
++ *   RADIO_STATS=1 software radio duty cycle: Glossy radio-on time per flood, PERF_RADIO line
++ *                 every RADIO_STATS_PERIOD rounds (docs/RADIO_STATS_NOTES.md).
+  */
+ #include "contiki.h"
+ #include "sys/etimer.h"
+@@ -92,6 +94,14 @@ static uint8_t oled_due;           /* refresh the SOURCE OLED in the idle time a
+ #endif
+ #endif
+ 
++#if UP_RADIO_STATS
++static uint16_t radio_rounds;             /* rounds since the previous PERF_RADIO */
++static volatile uint8_t radio_due;        /* print PERF_RADIO from the app process */
++static uint32_t radio_tlast;              /* RTIMER_NOW() at the previous PERF_RADIO / app start */
++static uint64_t radio_cum_ticks;          /* rtimer ticks elapsed since app start (64 bit) */
++static glossy_radio_stats_t radio_last;   /* Glossy accumulators at the previous PERF_RADIO */
++#endif
++
+ /* Single producer (rtimer) / single consumer (process) log queue. */
+ typedef struct { uint16_t seq; uint32_t ticks; uint8_t valid, started; } tx_event_t;
+ static tx_event_t tx_ring[TX_RING_SIZE];
+@@ -455,6 +465,13 @@ static void on_data(uint8_t *data, uint8_t len, uint16_t from)
+ 
+ static void on_sched_end(void)
+ {
++#if UP_RADIO_STATS
++  /* Every role: count rounds only. The line is printed by the app process, never from here. */
++  if(++radio_rounds >= UP_RADIO_STATS_PERIOD) {
++    radio_rounds = 0; radio_due = 1;
++    process_poll(&lwb_cc2538dk_env_process);
++  }
++#endif
+   if(role != ROLE_SOURCE) return;
+   if(lwb_time_is_fresh()) { if(fresh_rounds < 255) fresh_rounds++; }
+   else fresh_rounds = 0;
+@@ -764,6 +781,69 @@ static void source_close(uint8_t timed_out)
+   next_report_s = clock_seconds();
+ }
+ 
++#if UP_RADIO_STATS
++/* ---- RADIO_STATS: radio duty cycle from the Glossy radio on/off timestamps ----
++ * Each PERF_RADIO line carries the interval since the previous line (no prefix) and the totals
++ * since boot (cum_ prefix). duty = radio-on time / elapsed time, both in rtimer ticks, so the
++ * 32-bit RTIMER wrap cancels out. tx_on_ms is an ESTIMATE (completed transmissions x frame
++ * airtime), not a measurement. 64-bit totals are printed through u64_dec(): the minimal
++ * newlib printf is not relied upon for %llu. */
++#define RADIO_PRINT_BUDGET_MS 100 /* the UART line (~330 chars) must not run into the next round */
++
++static uint64_t rt_to_ms(uint64_t t) { return (t * 1000ULL + RTIMER_SECOND / 2) / RTIMER_SECOND; }
++
++static uint32_t duty_x10000(uint64_t on, uint64_t elapsed)
++{
++  return elapsed ? (uint32_t)((on * 10000ULL + elapsed / 2) / elapsed) : 0;
++}
++
++static uint32_t avg_on_us(uint64_t on, uint32_t floods)
++{
++  uint64_t d = (uint64_t)RTIMER_SECOND * floods;
++  return floods ? (uint32_t)((on * 1000000ULL + d / 2) / d) : 0;
++}
++
++/* Decimal text of v written backwards into buf[21]; returns the start of the text. */
++static const char *u64_dec(char *buf, uint64_t v)
++{
++  char *p = buf + 20;
++  *p = 0;
++  do { *--p = (char)('0' + (uint8_t)(v % 10)); v /= 10; } while(v);
++  return p;
++}
++
++static void radio_stats_print(void)
++{
++  glossy_radio_stats_t cur;
++  uint32_t now = (uint32_t)RTIMER_NOW();
++  uint64_t dt = (uint32_t)(now - radio_tlast);
++  uint64_t on_p, tx_p;
++  uint32_t fl_p;
++  char b_el[21], b_on[21], b_tx[21];
++  glossy_get_radio_stats(&cur);
++  radio_tlast = now;
++  radio_cum_ticks += dt;
++  on_p = cur.radio_on_ticks - radio_last.radio_on_ticks;
++  tx_p = cur.tx_on_us - radio_last.tx_on_us;
++  fl_p = cur.floods - radio_last.floods;
++  radio_last = cur;
++  printf("PERF_RADIO,run,%lu,node,%u,role,%s,elapsed_ms,%lu,radio_on_ms,%lu,duty_x10000,%lu,floods,%lu,avg_on_per_flood_us,%lu,tx_on_ms,%lu,cum_elapsed_ms,%s,cum_radio_on_ms,%s,cum_duty_x10000,%lu,cum_floods,%lu,cum_avg_on_per_flood_us,%lu,cum_tx_on_ms,%s\r\n",
++    (unsigned long)UP_RUN_ID, node_id, role_name(),
++    (unsigned long)rt_to_ms(dt), (unsigned long)rt_to_ms(on_p),
++    (unsigned long)duty_x10000(on_p, dt), (unsigned long)fl_p,
++    (unsigned long)avg_on_us(on_p, fl_p), (unsigned long)((tx_p + 500) / 1000),
++    u64_dec(b_el, rt_to_ms(radio_cum_ticks)), u64_dec(b_on, rt_to_ms(cur.radio_on_ticks)),
++    (unsigned long)duty_x10000(cur.radio_on_ticks, radio_cum_ticks),
++    (unsigned long)cur.floods, (unsigned long)avg_on_us(cur.radio_on_ticks, cur.floods),
++    u64_dec(b_tx, (cur.tx_on_us + 500) / 1000));
++}
++#define CONFIG_RADIO_FMT ",radio_stats,%u,radio_stats_period,%u"
++#define CONFIG_RADIO_ARGS , UP_RADIO_STATS, UP_RADIO_STATS_PERIOD
++#else
++#define CONFIG_RADIO_FMT ""
++#define CONFIG_RADIO_ARGS
++#endif
++
+ /* PERF_CONFIG records the new flags only when one of them differs from the defaults,
+  * so a default build prints exactly the previous line. */
+ #if UP_GEN_MODE || UP_FRESH_ONLY || UP_CONTINUOUS
+@@ -807,10 +887,10 @@ PROCESS_THREAD(lwb_cc2538dk_env_process, ev, data)
+   if(sensor_enabled) {
+     sample_sensor();
+   }
+-  printf("PERF_CONFIG,protocol,env_perf_v1,node,%u,role,%s,run,%lu,expected,%u,ipi_s,%u,source_ids,%s,payload_bytes,%u,timer_hz,%lu,channel,%u,tx_drive_dbm,%d,n_sync,%u,n_data_tx,%u,application_ack,0,application_retry,0,rtc_integrated,0,delay_endpoint,slot_end,scheduler,static_5s" CONFIG_EXT_FMT "\r\n",
++  printf("PERF_CONFIG,protocol,env_perf_v1,node,%u,role,%s,run,%lu,expected,%u,ipi_s,%u,source_ids,%s,payload_bytes,%u,timer_hz,%lu,channel,%u,tx_drive_dbm,%d,n_sync,%u,n_data_tx,%u,application_ack,0,application_retry,0,rtc_integrated,0,delay_endpoint,slot_end,scheduler,static_5s" CONFIG_EXT_FMT CONFIG_RADIO_FMT "\r\n",
+     node_id, role_name(), (unsigned long)UP_RUN_ID, UP_PACKETS, UP_IPI,
+     UP_SOURCE_IDS, (unsigned)sizeof(up_packet_t), (unsigned long)RTIMER_SECOND,
+-    CC2538_RF_CONF_CHANNEL, CC2592_CONF_TX_POWER_DBM, N_SYNC, N_RR CONFIG_EXT_ARGS);
++    CC2538_RF_CONF_CHANNEL, CC2592_CONF_TX_POWER_DBM, N_SYNC, N_RR CONFIG_EXT_ARGS CONFIG_RADIO_ARGS);
+   lwb_init(role == ROLE_HOST ? LWB_MODE_HOST : LWB_MODE_SOURCE, &callbacks);
+   glossy_set_enc(GLOSSY_ENC_OFF);
+   if(role == ROLE_SOURCE) {
+@@ -818,10 +898,16 @@ PROCESS_THREAD(lwb_cc2538dk_env_process, ev, data)
+     lwb_request_stream_mod(STREAM_ID, UP_IPI);
+   }
+   last_slot_s = clock_seconds();
++#if UP_RADIO_STATS
++  radio_tlast = (uint32_t)RTIMER_NOW();
++#endif
+   etimer_set(&maintenance_et, CLOCK_SECOND);
+   while(1) {
+     PROCESS_WAIT_EVENT();
+     if(role == ROLE_SOURCE) print_tx_events();
++#if UP_RADIO_STATS
++    if(radio_due && lwb_background_allowed(RADIO_PRINT_BUDGET_MS)) { radio_due = 0; radio_stats_print(); }
++#endif
+ #if UP_GEN_MODE
+     if(role == ROLE_SOURCE) gen_service(ev, data);
+ #else
+diff --git a/apps/lwb-cc2538dk-env/unified-conf.h b/apps/lwb-cc2538dk-env/unified-conf.h
+index a4c6951..2e00a7f 100644
+--- a/apps/lwb-cc2538dk-env/unified-conf.h
++++ b/apps/lwb-cc2538dk-env/unified-conf.h
+@@ -34,6 +34,14 @@
+ #ifndef UP_REPORT_EVERY
+ #define UP_REPORT_EVERY 60
+ #endif
++/* Software radio duty-cycle accounting (Glossy radio on/off timestamps). 0 = off: no code,
++ * no UART line. PERIOD = LWB rounds between two PERF_RADIO lines (12 rounds = 60 s). */
++#ifndef UP_RADIO_STATS
++#define UP_RADIO_STATS 0
++#endif
++#ifndef UP_RADIO_STATS_PERIOD
++#define UP_RADIO_STATS_PERIOD 12
++#endif
+ #if UP_GEN_MODE < 0 || UP_GEN_MODE > 1
+ #error "GEN_MODE must be 0 (etimer IPI) or 1 (phase aligned)"
+ #endif
+@@ -52,6 +60,15 @@
+ #if UP_REPORT_EVERY < 5 || UP_REPORT_EVERY > 10000
+ #error "REPORT_EVERY must be between 5 and 10000"
+ #endif
++#if UP_RADIO_STATS < 0 || UP_RADIO_STATS > 1
++#error "RADIO_STATS must be 0 or 1"
++#endif
++#if UP_RADIO_STATS_PERIOD < 1 || UP_RADIO_STATS_PERIOD > 10000
++#error "RADIO_STATS_PERIOD must be between 1 and 10000 rounds"
++#endif
++#if UP_RADIO_STATS && !GLOSSY_RADIO_STATS
++#error "RADIO_STATS=1 needs the Glossy accounting: build with GLOSSY_RADIO_STATS_CONF=1 (the Makefile does)"
++#endif
+ #if UP_GEN_MODE && !LWB_ROUND_TIMING_CONF
+ #error "GEN_MODE=1 needs lwb_get_next_round_ticks(): build with LWB_ROUND_TIMING_CONF=1 (the Makefile does)"
+ #endif
+diff --git a/docs/RADIO_STATS_NOTES.md b/docs/RADIO_STATS_NOTES.md
+new file mode 100644
+index 0000000..0a44fb7
+--- /dev/null
++++ b/docs/RADIO_STATS_NOTES.md
+@@ -0,0 +1,180 @@
++# RADIO_STATS_NOTES — đo radio duty cycle bằng phần mềm
++
++Phạm vi: `apps/lwb-cc2538dk-env` + `net/glossy`. Cờ `RADIO_STATS` (mặc định 0). Mọi số dòng dưới đây là của
++cây làm việc sau khi thêm cờ (đã có P2b, commit `a1a6c38`), trừ khi ghi khác. "Chưa xác nhận" = suy ra từ code, chưa đo trên kit.
++
++## 1. Cách dùng
++
++```bash
++# thêm vào lệnh build của mọi node (HOST, SOURCE, RELAY):  --set RADIO_STATS=1  [--set RADIO_STATS_PERIOD=12]
++python3 tools/build_node.py --contiki ~/contiki --node 2 --role SOURCE --host 1 \
++  --sources 2:3:4:5 --run 520 --packets 100 --ipi 5 --set GEN_MODE=1 --set RADIO_STATS=1 --out ~/lwb-build
++```
++
++- `RADIO_STATS=0` (mặc định): không có mã nào được biên dịch thêm (`glossy.c`, app đều như cũ), không có dòng UART mới.
++- `RADIO_STATS=1`: mỗi `RADIO_STATS_PERIOD` vòng (mặc định 12 = 60 s với vòng 5 s; hợp lệ 1..10000) mỗi node in 1 dòng `PERF_RADIO`
++  (chu kỳ vừa qua + tổng từ lúc khởi động). `PERF_CONFIG` có thêm `,radio_stats,1,radio_stats_period,N`.
++- Ảnh hưởng tới các node khác: không. Mỗi node tự đo; không thêm byte nào lên không khí (gói vẫn 28 byte).
++
++## 2. Radio BẬT / TẮT ở đâu (đọc từ code)
++
++Radio chỉ được bật/tắt trong `net/glossy/glossy.c` (đã grep toàn repo: `ISRXON/ISTXON/ISRFOFF/RFST` chỉ có ở `glossy.c` và `cc2538-rf.c`):
++
++| Việc | Hàm / dòng | Ghi chú |
++|---|---|---|
++| **BẬT**, node không phải initiator | `glossy_start()` nhánh else → `radio_on()` (`glossy.c:536`): `ISFLUSHRX` + `ISRXON` | gọi từ rtimer ISR của LWB (`LWB_WAIT_UNTIL` xong thì `glossy_start`); ở slot không phải của mình và slot tranh chấp của HOST bật sớm `T_GUARD`=1 ms; SOURCE ở slot tranh chấp và sync bật đúng/sớm `t_sync_guard` |
++| **BẬT**, initiator | `glossy_start()` nhánh `IS_INITIATOR()` → `radio_start_tx()` (`glossy.c:582`): `ISTXON` | "Actual transmission starts after 192 us"; radio vào TX sau ~192 µs |
++| **TẮT** (đường 1) | `glossy_stop()` (`glossy.c:1486`) → `radio_off()` (`:548`): `ISRFOFF` nếu `RXENABLE != 0` | do LWB gọi khi hết cửa sổ slot (`T_SYNC_ON`, `T_RR_ON` + guard) |
++| **TẮT** (đường 2) | `glossy_tx_ended()` (`:918`) khi `tx_cnt == N_max` → `glossy_stop()` (`:938`) | **trong RF ISR**, ngay sau TX cuối. Đây là cách Glossy tắt sớm khi flood thành công |
++| **TẮT** (đường 3) | `process_received_data()` (`:871-875`): nhận thêm một gói khi đã đủ `N_max` lần TX → `radio_abort_tx()` + `glossy_stop()` | **trong RF ISR**, sau quyết định "không cần relay nữa" |
++| Không đổi trạng thái bật/tắt | `radio_abort_tx()` (`ISRXON` lại, ép hiệu chỉnh RX), `radio_abort_rx()` (chỉ flush) | radio vẫn bật; thời gian vẫn nằm trong cùng flood |
++| Không chạy ở runtime | `cc2538-rf.c:114/121` `cc2838_rf_on()/off()` (`ISRXON`/`ISRFOFF`) | chỉ được `cc2538_rf_set_channel()` gọi khi radio **không** ở trạng thái idle; lúc `glossy_init()` radio đang tắt nên không chạy. `cc2538_rf_init()` không bật radio |
++
++Hệ quả: radio bật đúng từ lúc `glossy_start()` thành công đến lần `glossy_stop()` **đầu tiên** thấy `state == ACTIVE`
++(`glossy_stop()` thứ hai của cùng flood trả về sớm ở `state == OFF`, không đụng radio). Mọi chỗ gọi nằm trong `lwb-g-sync.c` / `lwb-g-rr.c`
++theo cặp start–stop (đã đếm: 13 `glossy_start` và 13 `glossy_stop()` ở hai file đó). Ngoài Glossy không có gì bật radio, với điều kiện `NETSTACK` rỗng (`LWB_CONF_NULL_NETSTACK=1` trong Makefile;
++cây Contiki nằm ngoài repo nên chưa kiểm tra).
++
++Glossy đã tự gọi `ENERGEST_ON/OFF(ENERGEST_TYPE_LISTEN)` ở đúng các điểm trên (kể cả `radio_start_tx()` của initiator, cũng ghi vào `LISTEN`),
++và `project-conf.h` bật `ENERGEST_CONF_ON=1`. Tức là cách "Contiki power profiler" của bài LWB cùng khoảng thời gian với cách đo ở đây;
++`RADIO_STATS` tồn tại vì Energest cộng 32 bit (quay vòng sau ~36 giờ), không cho số flood, và không in định kỳ.
++
++## 3. Cài đặt (và vì sao không đụng đường relay)
++
++- `net/glossy/glossy-radio-stats.h` (file mới, chỉ số học, không chạm phần cứng): `glossy_rs_on/off/read`.
++  Cộng dồn `radio_on_ticks` (uint64, tick rtimer), `floods` (uint32), `tx_count`, và `tx_on_us` (uint64).
++- `glossy.c` thêm đúng 3 chỗ, tất cả sau `#if GLOSSY_RADIO_STATS`:
++  1. `glossy_start()`: sau khi đã phát lệnh `ISRXON/ISTXON`, 1 lần `RTIMER_NOW()` (đọc sau lệnh nên không làm trễ lệnh).
++  2. `glossy_stop()`: dùng luôn `t_now_rt = RTIMER_NOW()` có sẵn, đọc ngay sau `radio_off()`; phép cộng nằm **sau** đoạn đo thời gian tới hạn
++     (`t_next_rt` / `t_now_mtt`), nên không đổi độ chính xác `t_ref`.
++  3. Hàm đọc `glossy_get_radio_stats()` (seqlock; chỉ gọi từ process).
++- **Không chèn gì** vào `cc2538_rf_mt_isr()`, `glossy_rx_ended()` (chỗ `mt_schedule_tx_csp()`), `glossy_tx_started()`, hay đường relay/TX-trigger.
++  Mã mới trong ISR chỉ chạy ở `glossy_stop()` khi flood đã kết thúc và radio đã tắt (~vài chục lệnh ARM + cộng số 64 bit), và `RTIMER_NOW()` (4 lần đọc thanh ghi)
++  trong `glossy_start()`.
++- Wrap RTIMER 32 bit: mọi khoảng tính bằng `(uint32_t)(off - on)` rồi cộng vào 64 bit; đúng khi một flood < 2^32 tick (~36 giờ). Thời gian trôi qua
++  (`elapsed`) giữa hai dòng `PERF_RADIO` cũng là hiệu `uint32` (process chạy mỗi ≤ 1 s nên không thể bỏ lỡ một vòng wrap). Tử số và mẫu số cùng tick, nên wrap không ảnh hưởng tỉ lệ.
++  Đã thử trong mô phỏng: khởi động rtimer ở `2^32 − 40 s` và `2^32 − 256 tick` cho ra đúng cùng số liệu như không wrap; thêm test `test_radio_stats` (wrap, 10^5 flood, flood dài qua wrap).
++- Đọc từ process trong khi ISR ghi: `seq` kiểu seqlock (đọc lại nếu `seq` lẻ hoặc đổi). Hai `glossy_stop()` chồng nhau (RF ISR ưu tiên cao hơn rtimer ISR)
++  chỉ đếm một lần nhờ `__atomic_exchange_n` trên cờ `on`. **Chưa xác nhận** GCC 4.9.3 `arm-none-eabi` sinh `ldrexb/strexb` inline cho lệnh này (nên là vậy với Cortex-M3);
++  nếu link báo `__atomic_exchange_1`, thay bằng `if(!rs->on) return; rs->on = 0;` (cửa sổ race chỉ vài lệnh và giống cửa sổ có sẵn của `state` trong `glossy_stop()`).
++- App: `on_sched_end()` (mọi vai trò, kể cả HOST/RELAY) đếm vòng; tới `RADIO_STATS_PERIOD` thì đặt cờ + `process_poll`. In **trong process app**, chỉ khi
++  `lwb_background_allowed(100)` (dòng ~250 ký tự ≈ 22 ms ở 115200 baud), nên không bao giờ rơi giữa vòng. SOURCE chưa đồng bộ (bootstrap, `round_active=1`) sẽ không in cho tới khi sync.
++  `printf` 64 bit không dùng (`%llu` không chắc có trong newlib-nano): các tổng 64 bit in qua `u64_dec()`.
++
++## 4. Định dạng dòng `PERF_RADIO`
++
++```
++PERF_RADIO,run,<run>,node,<id>,role,<HOST|SOURCE|RELAY>,elapsed_ms,<>,radio_on_ms,<>,duty_x10000,<>,floods,<>,avg_on_per_flood_us,<>,tx_on_ms,<>,
++           cum_elapsed_ms,<>,cum_radio_on_ms,<>,cum_duty_x10000,<>,cum_floods,<>,cum_avg_on_per_flood_us,<>,cum_tx_on_ms,<>
++```
++
++(một dòng, ≈ 250 ký tự; `UART_LINE_BUF_LEN` = 512)
++
++| Trường | Nghĩa |
++|---|---|
++| `elapsed_ms` / `cum_elapsed_ms` | thời gian kể từ dòng trước / từ lúc process app khởi động (rtimer, làm tròn ms). Dòng đầu tiên dài hơn 60 s (gồm khởi động + bootstrap) |
++| `radio_on_ms` | tổng (tắt − bật) của các flood hoàn tất trong khoảng đó |
++| `duty_x10000` | `radio_on / elapsed × 10000` (165 = 1,65 %), tính từ tick chứ không từ ms đã làm tròn |
++| `floods` | số cặp bật/tắt radio hoàn tất (sync + slot dữ liệu + slot tranh chấp + ack, **kể cả flood chỉ nghe không thu được gì**) |
++| `avg_on_per_flood_us` | `radio_on / floods` |
++| `tx_on_ms` | **ước lượng** thời gian phát: `Σ tx_cnt × (6 + tx_rx_len) × 32 µs` (6 = preamble 4 + SFD 1 + PHR 1; 32 µs/byte). Không gồm 192 µs quay đầu TX. Không đo trực tiếp được vì CSP kích hoạt TX trong phần cứng (xem NOTE trong `radio_start_tx()`), nên không đặt mã vào đường TX |
++| `cum_*` | cùng ý nghĩa, cộng dồn từ lúc khởi động (`cum_elapsed_ms`, `cum_radio_on_ms`, `cum_tx_on_ms` in qua `u64_dec`) |
++
++## 5. Duty cycle kỳ vọng theo tính toán (chưa đo)
++
++Giả thiết: cấu hình mặc định (`RTIMER_SECOND`=32768, `N_SYNC`=3, `N_DATA_TX`=3, `T_SYNC_ON`=`T_RR_ON`=30,27 ms, `T_GUARD`=0,98 ms, `T_GAP`=39,98 ms, bước slot 70,25 ms),
++vòng 5 s, 1 HOST + 4 SOURCE (2:3:4:5), IPI=5 ⇒ mỗi vòng 4 slot dữ liệu (đều có gói) + 1 slot tranh chấp, không slot ack; mọi node nghe được nhau (1 hop);
++gói dữ liệu `tx_rx_len` = 1 (id) + 4 (header Glossy) + 34 (1 + 5 + 28) + 2 (FCS) = **41 B**; gói lịch ≈ **18 B** (ước lượng; phụ thuộc nén lịch, ảnh hưởng nhỏ).
++
++Thời gian một frame `A = (6 + len) × 32 µs`; một "nhịp" Glossy `T = A + 50 µs (xử lý) + 192 µs (quay đầu)` = 1,746 ms (dữ liệu), 1,010 ms (lịch).
++Với `N` lần TX, 1 hop: initiator bật `0,192 + (2N−2)·T + A`; node nhận (relay) bật `guard + 0,192 + (2N−1)·T + A`.
++
++| Flood | Công thức (N=3) | Thời gian bật |
++|---|---|---|
++| Sync, HOST (initiator) | 0,192 + 4×1,010 + 0,768 | 5,00 ms |
++| Sync, SOURCE | 0,98 + 0,192 + 5×1,010 + 0,768 | 6,99 ms |
++| Dữ liệu, chủ slot (initiator) | 0,192 + 4×1,746 + 1,504 | 8,68 ms |
++| Dữ liệu, node khác / HOST | 0,98 + 0,192 + 5×1,746 + 1,504 | 11,40 ms |
++| Tranh chấp, SOURCE (nghe suốt `T_RR_ON`, không ai phát) | 30,27 | 30,27 ms |
++| Tranh chấp, HOST (dậy sớm, ra muộn `T_GUARD`) | 30,27 + 2×0,98 | 32,23 ms |
++
++Mỗi vòng 5 s:
++
++- **SOURCE**: 6,99 + 8,68 + 3×11,40 + 30,27 ≈ **80,1 ms ⇒ 1,60 %** (`duty_x10000` ≈ 160), 6 flood/vòng ⇒ `avg_on_per_flood` ≈ 13,4 ms; TX ước lượng ≈ 20,4 ms (0,41 %).
++- **HOST**: 5,00 + 4×11,40 + 32,23 ≈ **82,8 ms ⇒ 1,66 %** (≈ 166), `avg_on_per_flood` ≈ 13,8 ms.
++- Nhận xét: slot tranh chấp chiếm ≈ 38 % thời gian bật vì firmware dùng `T_RR_ON` (30 ms) cho cả slot tranh chấp (`T_FREE_ON`=10 ms chỉ được dùng để tính băng thông
++  trong `lwb-macros.h`, không dùng khi chạy). Nếu cửa sổ tranh chấp còn 10 ms thì duty ≈ 1,20 %.
++- Mỗi slot dữ liệu mà chủ slot **không có gói** làm mọi node khác nghe đủ cửa sổ: +≈ 19–21 ms/node/vòng (≈ +0,4 %).
++- `N`=2: SOURCE ≈ 64 ms ≈ 1,28 %. 1 SOURCE (1 slot dữ liệu): SOURCE ≈ 0,92 %, HOST ≈ 0,97 %.
++- Nhiều hop làm mỗi flood dài hơn (thêm khoảng 2 nhịp mỗi hop cho node ở xa); số trên là cận dưới cho topo 1 hop. Lệch xung nhịp/guard động (`T_GUARD_1..3` khi mất sync) làm tăng thêm.
++- Dòng đầu tiên của SOURCE gồm cả bootstrap (nghe liên tục tới khi nhận được lịch) nên duty cao bất thường; dùng các dòng sau, hoặc hiệu của `cum_*` giữa hai dòng.
++
++Cách đối chiếu khi đo thật: `duty_x10000` kỳ vọng 150–200 cho SOURCE/HOST ở cấu hình trên; `floods` mỗi chu kỳ 12 vòng ≈ 72 (6 × 12);
++`avg_on_per_flood_us` ≈ 13 000–14 000; `tx_on_ms` ≈ 245 ms (20,4 × 12). Lệch lớn ⇒ xem có slot rỗng (gói tới trễ), mất sync (guard lớn), hay nhiều hop.
++
++## 6. So sánh với các bài báo
++
++**Bài LWB (con số 1,40 %).** Con số này do bạn nêu; bài báo không có trong repo nên tôi **chưa kiểm chứng** điều kiện của nó và không khẳng định số nào khác.
++Muốn so sánh đúng phải căn cho khớp các tham số mà duty cycle phụ thuộc trực tiếp (công thức trên): chu kỳ vòng `T`, số slot dữ liệu mỗi vòng, độ dài gói
++(`A`, `T_slot`), `N` (số lần TX), độ dài cửa sổ mỗi slot (ở đây cố định 30 ms), số và độ dài slot tranh chấp, guard, topo (số hop), và định nghĩa: radio-on của
++CC2538 (kể cả calibration 192 µs) chia cho tổng thời gian, trung bình trên node nào (HOST hay SOURCE). Với cấu hình mặc định ở đây, 1,6 % là thứ tính được; chênh khoảng 0,2
++điểm phần trăm so với 1,40 % nằm trong khoảng mà riêng việc đổi cửa sổ tranh chấp 30 → ~20 ms (−10 ms/vòng) hay `N` 3 → 2 (−16 ms/vòng) đã đủ giải thích, nên **không nên** coi
++hai số là cùng điều kiện cho tới khi đối chiếu tham số bài báo. Khi đo thật, báo `duty_x10000` của từng dòng (không chỉ trung bình), kèm cấu hình trên.
++
++**Bài Glossy (radio on-time mỗi flood).** Số gần nhất của ta là `avg_on_per_flood_us`, nhưng khác định nghĩa: ở đây `floods` gồm cả flood chỉ nghe không thu được gì
++(slot tranh chấp ≈ 30 ms, slot rỗng) và flood sync, nên **không so thẳng** được với "radio-on time per flood" của bài Glossy (chỉ tính flood đã chạy xong N TX). Để so
++cho đúng cần tách theo loại flood (`rx_cnt>0` hay không, theo `GLOSSY_WITH_SYNC` hay không); hiện chưa làm. Bảng ở mục 5 cho giá trị kỳ vọng từng loại: flood dữ liệu
++1 hop N=3 ≈ 8,7 ms (initiator) / 11,4 ms (relay), flood sync ≈ 5,0 / 7,0 ms. Công thức kỳ vọng theo `N` ở trên (≈ `(2N−2)·T + A + 0,2` ms cho initiator) cũng là cách đối chiếu xu hướng với bài Glossy
++khi đổi `N_SYNC` / `N_DATA_TX`.
++
++## 7. Độ chính xác và giới hạn
++
++- Độ phân giải 1 tick rtimer = 30,5 µs ở mỗi đầu flood (sai số ngẫu nhiên ±1 tick, không thiên lệch có hệ thống); với flood ~10 ms ≈ 0,3 %. Mốc BẬT lấy sau lệnh strobe vài µs,
++  mốc TẮT lấy ngay sau `ISRFOFF` (trước vòng chờ tick của `glossy_stop()`), nên sai lệch phần mềm < 5 µs/flood.
++- Đo thời gian lệnh bật→tắt, tức gồm cả thời gian hiệu chỉnh/khởi động của radio sau `ISRXON/ISTXON`, giống Energest và bảng dòng điện của RF core; **không** gồm CPU, UART, cảm biến, OLED.
++- `tx_on_ms` là ước lượng từ `tx_cnt` (TX hoàn tất): TX đang dở lúc `glossy_stop()` không được tính.
++- `SOURCE`/`RELAY` mất sync dài sẽ vào bootstrap (nghe liên tục): duty tiến tới 100 % trong giai đoạn đó, đúng thực tế nhưng làm méo số trung bình.
++- Chưa xác nhận trên kit: (1) `__atomic_exchange_n` với toolchain đích; (2) so với `energest_type_time(ENERGEST_TYPE_LISTEN)` (Energest đã bật): hai số nên khớp trong ~`floods` tick;
++  (3) tổng RAM/flash (thêm ≈ 100 B RAM, ≈ vài trăm B flash khi bật); (4) ảnh hưởng của vài chục lệnh thêm trong `glossy_stop()` lên `t_ref` (về lý thuyết bằng 0 vì nằm sau phần đo).
++- Khi `RADIO_STATS=0`: `GLOSSY_RADIO_STATS=0`, `glossy.c`/`glossy.h` biên dịch ra đúng mã cũ; app không in `PERF_RADIO`, `PERF_CONFIG` không có trường mới (đã kiểm tra bằng mô phỏng, xem dưới).
++
++## 8. Đã kiểm tra những gì (không build firmware, không nạp kit)
++
++- `gcc 13.2 -fsyntax-only -Wall -Wextra` (stub Contiki/LWB dựng lại trong thư mục tạm) cho `RADIO_STATS{0,1} × GEN_MODE{0,1} × ROLE{HOST,SOURCE,RELAY} × PACKETS{100,0}` (24 tổ hợp)
++  và cấu hình không truyền cờ radio nào: không lỗi, không cảnh báo mới. `#error` đúng cho `RADIO_STATS=2`, `RADIO_STATS_PERIOD=0/10001`, `RADIO_STATS=1` thiếu hook Glossy; `PERIOD=1/10000` hợp lệ.
++  `glossy.c` **không** syntax-check được ở đây (không có toolchain ARM, thiếu CMSIS); 3 chỗ thêm vào được soát bằng mắt (kiểu `uint8_t tx_cnt, tx_rx_len`, `rtimer_clock_t t_now_rt`).
++- Mô phỏng host (stub LWB/etimer/rtimer, chạy chính file ứng dụng, mô hình flood: sync 11 ms, slot dữ liệu của mình 8,5 ms, tranh chấp 30 ms): `RADIO_STATS=0` cho log SOURCE **giống từng byte**
++  commit `a1a6c38` ở 6 cấu hình (`GEN_MODE` 0/1 × OLED 0/1, `PACKETS=0` với `GEN_MODE` 0/1) × 3 pha × 2 mức thời gian cảm biến/OLED (300 s mô phỏng). `RADIO_STATS=1`: dòng đầu ở 61,2 s, các dòng sau
++  cách đúng 60 s, `floods` 36/chu kỳ (3 × 12 vòng), `radio_on_ms` 594 (mô hình 49,5 ms × 12), `tx_on_ms` 85, `duty_x10000` 99; khởi động rtimer gần wrap cho đúng cùng số liệu. Các số này chỉ kiểm tra đường
++  dẫn (đếm vòng, chu kỳ, định dạng, wrap, 64 bit), **không** phải số đo radio thật.
++- `tests/test_native.c` thêm `test_radio_stats` (bật/tắt, bật hai lần, tắt hai lần, wrap, 10^5 flood, flood dài qua wrap, ước lượng TX); biên dịch với `-std=c99 -Wall -Wextra -Werror` cùng `list.c/memb.c`
++  của cây Contiki ở `../Contiki os/core` và chạy PASS (chưa chạy trọn `tools/check.py`: lệnh gọi `python3` và ASan, không dùng ở đây).
++- `python -m unittest discover -s tests` → 12 test OK.
++- Gateway: xem mục 9.
++
++## 9. Gateway (`gateway/lwb_source/lwb_gateway.py`, nằm ngoài repo `lwb-cc2538dk`)
++
++- Dòng có checksum hợp lệ (`UART_CHECKSUM=1`, mặc định) **luôn được lưu** vào SQLite, `KNOWN_TYPES` không lọc chúng. `KNOWN_TYPES` chỉ dùng cho dòng **không** checksum
++  (`legacy_line_looks_valid`): dòng loại không có trong danh sách bị ghi là `UART_BAD`. Đã thêm `"PERF_RADIO"` vào `KNOWN_TYPES` (chỉ sửa danh sách).
++- Đã thử bằng hàm của chính gateway với một dòng `PERF_RADIO` mô phỏng: có `*HH` đúng → `ok`, `source`=node, `run`=run, các khóa `cum_*` được nhận; không có `*HH` → được chấp nhận sau khi thêm vào danh sách;
++  sai `*HH` → `bad`.
++- Không đổi: `mqtt_publisher.py` có danh sách `PERF_TYPES` riêng, **không** có `PERF_RADIO`, nên dòng này nằm trong SQLite nhưng không lên MQTT. Nếu cần đẩy lên cloud thì thêm vào `PERF_TYPES` (chưa làm vì ngoài yêu cầu).
++  `PERF_GATE`, `PERF_SUPERSEDE`, `PERF_REPORT_TX` (cờ FRESH_ONLY / `PACKETS=0`) cũng chưa có trong `KNOWN_TYPES`: chỉ ảnh hưởng khi build với `UART_CHECKSUM=0`.
++- Giữ build có checksum (mặc định) cho các lượt đo `RADIO_STATS`; dòng ~250 ký tự vẫn dưới 512 của bộ đệm checksum.
++
++## 10. Danh sách file đã sửa
++
++```text
++net/glossy/glossy-radio-stats.h            (file mới) số học cộng dồn, wrap-safe, seqlock
++net/glossy/glossy.h                        cờ GLOSSY_RADIO_STATS, khai báo glossy_get_radio_stats()
++net/glossy/glossy.c                        3 chỗ sau #if GLOSSY_RADIO_STATS: g_rs + getter, glossy_start(), glossy_stop()
++apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c   đếm vòng, PERF_RADIO, trường PERF_CONFIG
++apps/lwb-cc2538dk-env/unified-conf.h       RADIO_STATS, RADIO_STATS_PERIOD, kiểm tra hợp lệ
++apps/lwb-cc2538dk-env/Makefile             RADIO_STATS ?= 0, RADIO_STATS_PERIOD ?= 12, GLOSSY_RADIO_STATS_CONF
++tools/build_node.py                        --set RADIO_STATS / RADIO_STATS_PERIOD
++tests/test_native.c                        test_radio_stats
++README_VI.md                               bảng tham số + ghi chú ngắn
++docs/RADIO_STATS_NOTES.md                  (file mới) tài liệu này
++radio_stats.diff                           (file mới) git diff + file mới, chưa commit
++../gateway/lwb_source/lwb_gateway.py       (ngoài repo) thêm "PERF_RADIO" vào KNOWN_TYPES
++```
+diff --git a/net/glossy/glossy-radio-stats.h b/net/glossy/glossy-radio-stats.h
+new file mode 100644
+index 0000000..24afe1c
+--- /dev/null
++++ b/net/glossy/glossy-radio-stats.h
+@@ -0,0 +1,75 @@
++/*
++ * Software radio-on accounting for Glossy floods (compiled only with GLOSSY_RADIO_STATS=1).
++ *
++ * The radio is switched on in glossy_start() and off in glossy_stop() (see
++ * docs/RADIO_STATS_NOTES.md). This header only holds the arithmetic so that it can be
++ * unit-tested on a host; it touches no hardware and adds nothing to the relay/TX-trigger
++ * path of the Glossy ISRs. Timestamps are RTIMER_NOW() values: the 32-bit counter may wrap,
++ * so every interval is computed with unsigned 32-bit subtraction (valid for floods < 2^32
++ * ticks, ~36 h at 32768 Hz) and summed into 64-bit accumulators.
++ */
++#ifndef GLOSSY_RADIO_STATS_H_
++#define GLOSSY_RADIO_STATS_H_
++
++#include <stdint.h>
++
++/* Accumulated since boot. Readers must use glossy_rs_read() (writers run in ISRs). */
++typedef struct {
++  uint64_t radio_on_ticks;  /* sum over floods of (radio off - radio on), rtimer ticks */
++  uint64_t tx_on_us;        /* ESTIMATED TX airtime: tx_cnt * (6 + len) * 32 us per flood */
++  uint32_t floods;          /* completed on/off pairs */
++  uint32_t tx_count;        /* completed transmissions */
++} glossy_radio_stats_t;
++
++typedef struct {
++  volatile uint32_t seq;    /* odd while the accumulators are being updated (seqlock) */
++  uint32_t t_on;            /* RTIMER_NOW() at the last radio-on */
++  volatile uint8_t on;      /* 1 between radio on and radio off */
++  glossy_radio_stats_t acc;
++} glossy_rs_t;
++
++#define GLOSSY_RS_BARRIER() __asm__ volatile("" ::: "memory")
++/* IEEE 802.15.4 O-QPSK: 32 us per byte; SHR = 4 preamble + 1 SFD bytes, PHR = 1 length byte. */
++#define GLOSSY_RS_PHY_OVERHEAD_BYTES 6
++#define GLOSSY_RS_US_PER_BYTE 32
++
++/* Radio switched on. A second start while already on keeps the first timestamp. */
++static inline void glossy_rs_on(glossy_rs_t *rs, uint32_t now)
++{
++  if(!rs->on) {
++    rs->t_on = now;
++    GLOSSY_RS_BARRIER();
++    rs->on = 1;
++  }
++}
++
++/* Radio switched off. tx_cnt / tx_rx_len: completed transmissions of this flood and the
++ * length byte (PSDU incl. FCS) of the frame. Ignored if the radio was not counted as on
++ * (the atomic exchange also makes a stop that preempts another stop count once). */
++static inline void glossy_rs_off(glossy_rs_t *rs, uint32_t now, uint8_t tx_cnt, uint8_t tx_rx_len)
++{
++  if(!__atomic_exchange_n(&rs->on, (uint8_t)0, __ATOMIC_ACQ_REL)) return;
++  rs->seq++;
++  GLOSSY_RS_BARRIER();
++  rs->acc.radio_on_ticks += (uint32_t)(now - rs->t_on);
++  rs->acc.floods++;
++  rs->acc.tx_count += tx_cnt;
++  rs->acc.tx_on_us += (uint64_t)tx_cnt * (uint32_t)(GLOSSY_RS_PHY_OVERHEAD_BYTES + tx_rx_len) *
++                      GLOSSY_RS_US_PER_BYTE;
++  GLOSSY_RS_BARRIER();
++  rs->seq++;
++}
++
++/* Consistent snapshot from process context (retries if an ISR updates meanwhile). */
++static inline void glossy_rs_read(glossy_rs_t *rs, glossy_radio_stats_t *out)
++{
++  uint32_t s;
++  do {
++    s = rs->seq;
++    GLOSSY_RS_BARRIER();
++    *out = rs->acc;
++    GLOSSY_RS_BARRIER();
++  } while((s & 1u) || s != rs->seq);
++}
++
++#endif /* GLOSSY_RADIO_STATS_H_ */
+diff --git a/net/glossy/glossy.c b/net/glossy/glossy.c
+index caa0a06..ecc3498 100644
+--- a/net/glossy/glossy.c
++++ b/net/glossy/glossy.c
+@@ -521,6 +521,17 @@ glossy_status_t glossy_set_enc_key(uint8_t* key, glossy_aes_key_size_t key_size)
+   return GLOSSY_STATUS_SUCCESS;
+ }
+ 
++#if GLOSSY_RADIO_STATS
++/* Radio-on accounting. The radio is on only between glossy_start() and glossy_stop(); both ends
++ * are sampled outside the relay/TX-trigger ISR paths (docs/RADIO_STATS_NOTES.md). */
++static glossy_rs_t g_rs;
++
++void glossy_get_radio_stats(glossy_radio_stats_t *out)
++{
++  glossy_rs_read(&g_rs, out);
++}
++#endif
++
+ /* --------------------------- Radio functions -------------------------------------------------- */
+ static inline void radio_on(void)
+ {
+@@ -1463,6 +1474,11 @@ glossy_status_t glossy_start(uint16_t initiator_id, uint8_t* payload, uint8_t pa
+     radio_on();
+   }
+ 
++#if GLOSSY_RADIO_STATS
++  /* Radio is on (ISRXON / ISTXON issued above). Sampled after the strobe so it cannot delay it. */
++  glossy_rs_on(&g_rs, (uint32_t)RTIMER_NOW());
++#endif
++
+   return GLOSSY_STATUS_SUCCESS;
+ }
+ 
+@@ -1486,6 +1502,12 @@ uint8_t glossy_stop(void)
+   } while (t_now_rt == (t_next_rt = RTIMER_NOW()));
+   t_now_mtt = cc2538_rf_get_mac_time_now();
+ 
++#if GLOSSY_RADIO_STATS
++  /* t_now_rt was read right after radio_off() above, so it is the radio-off time. The sums are
++   * done after the time-critical t_next_rt / t_now_mtt capture so they cannot disturb it. */
++  glossy_rs_off(&g_rs, (uint32_t)t_now_rt, g_cntxt.tx_cnt, g_cntxt.tx_rx_len);
++#endif
++
+   CC2538_RF_CSP_ISFLUSHRX();
+   CC2538_RF_CSP_ISFLUSHTX();
+ 
+diff --git a/net/glossy/glossy.h b/net/glossy/glossy.h
+index ac8c1f4..6bc09eb 100644
+--- a/net/glossy/glossy.h
++++ b/net/glossy/glossy.h
+@@ -52,6 +52,20 @@
+ #define CLOCK_PHI                     (sys_ctrl_get_sys_clock() / RTIMER_SECOND)
+ 
+ 
++/* 1 = account the radio-on time of every flood (see glossy-radio-stats.h). Default 0: glossy.c
++ * is compiled exactly as before. The ENV app sets GLOSSY_RADIO_STATS_CONF from RADIO_STATS. */
++#ifdef GLOSSY_RADIO_STATS_CONF
++#define GLOSSY_RADIO_STATS GLOSSY_RADIO_STATS_CONF
++#else
++#define GLOSSY_RADIO_STATS 0
++#endif
++
++#if GLOSSY_RADIO_STATS
++#include "glossy-radio-stats.h"
++/* Consistent snapshot of the accumulators since boot (call from process context). */
++void glossy_get_radio_stats(glossy_radio_stats_t *out);
++#endif
++
+ enum {
+   GLOSSY_UNKNOWN_INITIATOR = 0
+ };
+diff --git a/tests/test_native.c b/tests/test_native.c
+index 9e9572e..47aadcc 100644
+--- a/tests/test_native.c
++++ b/tests/test_native.c
+@@ -6,6 +6,7 @@
+ #include "lwb-sched-compressor.h"
+ #include "lwb-scheduler.h"
+ #include "lwb-macros.h"
++#include "../net/glossy/glossy-radio-stats.h"
+ 
+ lwb_context_t lwb_context;
+ 
+@@ -121,9 +122,53 @@ static void test_continuous(void)
+   assert(up_ratio32(9, 10) == 9000 && up_ratio32(1, 0) == -1);
+ }
+ 
++/* RADIO_STATS arithmetic (net/glossy/glossy-radio-stats.h): on/off pairs, RTIMER wrap, TX estimate. */
++static void test_radio_stats(void)
++{
++  glossy_rs_t rs;
++  glossy_radio_stats_t o;
++  memset(&rs, 0, sizeof(rs));
++  glossy_rs_off(&rs, 100, 3, 41);                  /* off without on: ignored */
++  glossy_rs_read(&rs, &o);
++  assert(o.floods == 0 && o.radio_on_ticks == 0 && !rs.on);
++  glossy_rs_on(&rs, 1000);
++  glossy_rs_on(&rs, 1500);                         /* second start keeps the first timestamp */
++  glossy_rs_off(&rs, 1000 + 400, 3, 41);
++  glossy_rs_off(&rs, 1000 + 999, 3, 41);           /* second stop of the same flood: ignored */
++  glossy_rs_read(&rs, &o);
++  assert(o.floods == 1 && o.radio_on_ticks == 400 && o.tx_count == 3);
++  assert(o.tx_on_us == 3u * (6 + 41) * 32);        /* 4512 us */
++  assert((rs.seq & 1u) == 0 && rs.seq == 2);
++  /* RTIMER wrap: on at 2^32 - 100, off 250 ticks later (counter restarted at 150). */
++  glossy_rs_on(&rs, 0xffffff9cu);
++  glossy_rs_off(&rs, 150u, 0, 0);
++  glossy_rs_read(&rs, &o);
++  assert(o.floods == 2 && o.radio_on_ticks == 650 && o.tx_count == 3 && o.tx_on_us == 4512);
++  /* Many floods with a wrap in between: 64-bit sum, no 32-bit overflow. */
++  {
++    uint32_t t = 0xfffff000u, i;
++    uint64_t expect = o.radio_on_ticks;
++    for(i = 0; i < 100000; i++) {
++      glossy_rs_on(&rs, t); t += 1000;
++      glossy_rs_off(&rs, t, 1, 20); t += 40000; expect += 1000;
++    }
++    glossy_rs_read(&rs, &o);
++    assert(o.floods == 100002 && o.radio_on_ticks == expect && expect > 0xffffffffULL / 1000);
++    assert(o.tx_count == 100003);
++  }
++  /* A long flood (e.g. bootstrap listening) across the wrap: 0x80000000 -> 0x10000 is 0x80010000 ticks. */
++  {
++    uint64_t before = o.radio_on_ticks;
++    glossy_rs_on(&rs, 0x80000000u);
++    glossy_rs_off(&rs, 0x10000u, 0, 0);
++    glossy_rs_read(&rs, &o);
++    assert(o.radio_on_ticks == before + 0x80010000ULL && o.floods == 100003);
++  }
++}
++
+ int main(void)
+ {
+-  test_stats(); test_codec(); test_slot_zero_and_flags(); test_continuous();
+-  puts("PASS: packet size, delay/wrap, duplicate/ordering, codec/invalid input, slot zero, poll flags, continuous helpers");
++  test_stats(); test_codec(); test_slot_zero_and_flags(); test_continuous(); test_radio_stats();
++  puts("PASS: packet size, delay/wrap, duplicate/ordering, codec/invalid input, slot zero, poll flags, continuous helpers, radio stats");
+   return 0;
+ }
+diff --git a/tools/build_node.py b/tools/build_node.py
+index 41ebf9b..9bebffa 100644
+--- a/tools/build_node.py
++++ b/tools/build_node.py
+@@ -16,7 +16,8 @@ EXTRA = {"CHANNEL", "TX_POWER_DBM", "N_SYNC", "N_DATA_TX", "DATA_BUFFERS",
+          "DRAIN_TIMEOUT", "REPORT_REPEAT", "SUMMARY_PERIOD", "MAX_DELAY_S",
+          "SAMPLE_PERIOD", "OLED", "HOST_LOCAL_SENSOR", "USE_TEMP_RH", "UART_CHECKSUM",
+          "USE_LIGHT", "USE_BMP", "TEMP_RH_SENSOR", "I2C_SCL", "I2C_SDA",
+-         "GEN_MODE", "GEN_LEAD_MS", "FRESH_ONLY", "REPORT_EVERY", "SENSOR_BUDGET_MS"}
++         "GEN_MODE", "GEN_LEAD_MS", "FRESH_ONLY", "REPORT_EVERY", "SENSOR_BUDGET_MS",
++         "RADIO_STATS", "RADIO_STATS_PERIOD"}
+ 
+ 
+ def main():

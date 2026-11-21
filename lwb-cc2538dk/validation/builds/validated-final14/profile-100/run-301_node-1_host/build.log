@@ -1,0 +1,402 @@
+fatal: not a git repository: '/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/.git'
+mkdir obj_cc2538dk
+  CC        lwb-cc2538dk-env.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/startup-gcc.c
+In file included from /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/startup-gcc.c:43:
+/tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/startup-gcc.c: In function 'reset_handler':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/startup-gcc.c:316:3: note: in expansion of macro 'rom_util_memcpy'
+  316 |   rom_util_memcpy(&_data, &_ldata, &_edata - &_data);
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/rom-util.h:116:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  116 |   (ROM_UTIL_API->memset((s), (c), (n)))
+      |                ^~
+/tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/startup-gcc.c:319:3: note: in expansion of macro 'rom_util_memset'
+  319 |   rom_util_memset(&_bss, 0, &_ebss - &_bss);
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/dev/leds.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/platform/cc2538dk/dev/leds-arch.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/platform/cc2538dk/./contiki-main.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/sensors.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/platform/cc2538dk/dev/smartrf-sensors.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/platform/cc2538dk/dev/button-sensor.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/platform/cc2538dk/dev/als-sensor.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./soc.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./clock.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./soc.c:39:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./soc.c: In function 'soc_print_info':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:108:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  108 |   (ROM_UTIL_API->get_chip_id())
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./soc.c:97:10: note: in expansion of macro 'rom_util_get_chip_id'
+   97 |          rom_util_get_chip_id(),
+      |          ^~~~~~~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:106:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  106 |   (ROM_UTIL_API->get_flash_size())
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./soc.c:99:10: note: in expansion of macro 'rom_util_get_flash_size'
+   99 |          rom_util_get_flash_size() >> 10,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./rtimer-arch.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/uart.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/watchdog.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/nvic.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sys-ctrl.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gpio.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ioc.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/spi.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/adc.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/dev/crypto.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/aes.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/aes.c:44:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/aes.c: In function 'aes_load_keys':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/aes.c:68:7: note: in expansion of macro 'rom_util_memcpy'
+   68 |       rom_util_memcpy(&aligned_keys[i << 2], &((const uint64_t *)keys)[i * 3],
+      |       ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/aes.c:81:5: note: in expansion of macro 'rom_util_memcpy'
+   81 |     rom_util_memcpy(aligned_keys, keys, count << 4);
+      |     ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ecb.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ctr.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ctr.c:39:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ctr.c: In function 'ctr_crypt_start':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ctr.c:62:3: note: in expansion of macro 'rom_util_memcpy'
+   62 |   rom_util_memcpy(&((uint8_t *)iv)[0], nonce, nonce_len);
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ctr.c:64:3: note: in expansion of macro 'rom_util_memcpy'
+   64 |   rom_util_memcpy(&((uint8_t *)iv)[nonce_len], ictr, ctr_len);
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc-mac.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc-mac.c:39:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc-mac.c: In function 'cbc_mac_auth_start':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:116:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  116 |   (ROM_UTIL_API->memset((s), (c), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc-mac.c:59:3: note: in expansion of macro 'rom_util_memset'
+   59 |   rom_util_memset(iv, 0, AES_IV_LEN);
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc-mac.c: In function 'cbc_mac_auth_get_result':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:120:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  120 |   (ROM_UTIL_API->memcmp((s1), (s2), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc-mac.c:78:8: note: in expansion of macro 'rom_util_memcmp'
+   78 |     if(rom_util_memcmp(tag, mac_in, CBC_MAC_MAC_LEN)) {
+      |        ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cbc-mac.c:85:5: note: in expansion of macro 'rom_util_memcpy'
+   85 |     rom_util_memcpy(mac_out, tag, CBC_MAC_MAC_LEN);
+      |     ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c:39:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c: In function 'gcm_auth_crypt_get_result':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:120:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  120 |   (ROM_UTIL_API->memcmp((s1), (s2), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c:84:8: note: in expansion of macro 'rom_util_memcmp'
+   84 |     if(rom_util_memcmp(tag, tag_in, GCM_TAG_LEN)) {
+      |        ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c:91:5: note: in expansion of macro 'rom_util_memcpy'
+   91 |     rom_util_memcpy(tag_out, tag, GCM_TAG_LEN);
+      |     ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+In function 'gcm_auth_crypt_start',
+    inlined from 'gcm_auth_encrypt_start' at /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c:102:10:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c:63:3: note: in expansion of macro 'rom_util_memcpy'
+   63 |   rom_util_memcpy(aes_iv, iv, GCM_IV_LEN);
+      |   ^~~~~~~~~~~~~~~
+In function 'gcm_auth_encrypt_start':
+cc1: note: source object is likely at address zero
+In function 'gcm_auth_crypt_start',
+    inlined from 'gcm_auth_decrypt_start' at /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c:117:10:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/gcm.c:63:3: note: in expansion of macro 'rom_util_memcpy'
+   63 |   rom_util_memcpy(aes_iv, iv, GCM_IV_LEN);
+      |   ^~~~~~~~~~~~~~~
+In function 'gcm_auth_decrypt_start':
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sha256.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c:45:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c: In function 'ccm_auth_crypt_start':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c:73:3: note: in expansion of macro 'rom_util_memcpy'
+   73 |   rom_util_memcpy(&((uint8_t *)iv)[CCM_FLAGS_LEN], nonce,
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:116:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  116 |   (ROM_UTIL_API->memset((s), (c), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c:76:3: note: in expansion of macro 'rom_util_memset'
+   76 |   rom_util_memset(&((uint8_t *)iv)[AES_IV_LEN - len_len], 0, len_len);
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c: In function 'ccm_auth_crypt_get_result':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:120:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  120 |   (ROM_UTIL_API->memcmp((s1), (s2), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c:98:8: note: in expansion of macro 'rom_util_memcmp'
+   98 |     if(rom_util_memcmp(tag, &((const uint8_t *)cdata)[data_len], mic_len)) {
+      |        ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ccm.c:104:3: note: in expansion of macro 'rom_util_memcpy'
+  104 |   rom_util_memcpy(mic, tag, mic_len);
+      |   ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cc2538-aes-128.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sha256.c:45:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sha256.c: In function 'sha256_process':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sha256.c:262:7: note: in expansion of macro 'rom_util_memcpy'
+  262 |       rom_util_memcpy(state->buf, data, BLOCK_SIZE);
+      |       ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sha256.c:273:7: note: in expansion of macro 'rom_util_memcpy'
+  273 |       rom_util_memcpy(&state->buf[state->curlen], data, n);
+      |       ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sha256.c:291:7: note: in expansion of macro 'rom_util_memcpy'
+  291 |       rom_util_memcpy(state->buf, data, BLOCK_SIZE);
+      |       ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:118:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  118 |   (ROM_UTIL_API->memcpy((dest), (src), (n)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/sha256.c:301:7: note: in expansion of macro 'rom_util_memcpy'
+  301 |       rom_util_memcpy(&state->buf[state->curlen], data, n);
+      |       ^~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cc2538-ccm-star.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/dev/cc2538-rf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/udma.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./lpm.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/pka.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/bignum-driver.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ecc-driver.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ecc-algorithm.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/ecc-curve.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dbg.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./ieee-addr.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./slip-arch.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/dev/slip.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/i2c.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/cc2538-temp-sensor.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/vdd3-sensor.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/cfs/cfs-coffee.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c:42:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c: In function 'cfs_coffee_arch_erase':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:110:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  110 |   (ROM_UTIL_API->page_erase((flash_addr), (size)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c:80:3: note: in expansion of macro 'rom_util_page_erase'
+   80 |   rom_util_page_erase(COFFEE_START + sector * COFFEE_SECTOR_SIZE,
+      |   ^~~~~~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c: In function 'cfs_coffee_arch_write':
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:112:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  112 |   (ROM_UTIL_API->program_flash((ram_data), (flash_addr), (byte_count)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c:100:5: note: in expansion of macro 'rom_util_program_flash'
+  100 |     rom_util_program_flash(&word, flash_addr & ~(FLASH_WORD_SIZE - 1),
+      |     ^~~~~~~~~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:112:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  112 |   (ROM_UTIL_API->program_flash((ram_data), (flash_addr), (byte_count)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c:125:5: note: in expansion of macro 'rom_util_program_flash'
+  125 |     rom_util_program_flash(&word, flash_addr, FLASH_WORD_SIZE);
+      |     ^~~~~~~~~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./dev/rom-util.h:112:16: warning: array subscript 0 is outside array bounds of 'struct rom_util_api[0]' [-Warray-bounds=]
+  112 |   (ROM_UTIL_API->program_flash((ram_data), (flash_addr), (byte_count)))
+      |                ^~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/./cfs-coffee-arch.c:115:5: note: in expansion of macro 'rom_util_program_flash'
+  115 |     rom_util_program_flash(page_buf, flash_addr, len);
+      |     ^~~~~~~~~~~~~~~~~~~~~~
+cc1: note: source object is likely at address zero
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/pwm.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../arm/common/dbg-io/dbg-printf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../arm/common/dbg-io/dbg-snprintf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../arm/common/dbg-io/strformat.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../arm/common/dbg-io/dbg-sprintf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../cc253x/usb/common/usb-core.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../cc253x/usb/common/usb-core.c:6:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../cc253x/usb/common/descriptors.h:9:53: warning: duplicate 'const' declaration specifier [-Wduplicate-decl-specifier]
+    9 | extern const struct usb_st_configuration_descriptor const *configuration_head;
+      |                                                     ^~~~~
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../cc253x/usb/common/cdc-acm/cdc-acm.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/usb/usb-arch.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/usb/usb-serial.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/usb/cdc-acm-descriptors.c
+In file included from /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/usb/cdc-acm-descriptors.c:40:
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/../cc253x/usb/common/descriptors.h:9:53: warning: duplicate 'const' declaration specifier [-Wduplicate-decl-specifier]
+    9 | extern const struct usb_st_configuration_descriptor const *configuration_head;
+      |                                                     ^~~~~
+/workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/usb/cdc-acm-descriptors.c:164:46: warning: duplicate 'const' declaration specifier [-Wduplicate-decl-specifier]
+  164 | const struct usb_st_configuration_descriptor const *configuration_head =
+      |                                              ^~~~~
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/arg.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/autostart.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/compower.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/ctimer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/energest.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/etimer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/mt.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/process.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/procinit.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/rtimer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/stimer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/sys/timer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/dev/nullradio.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/dev/serial-line.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/aes-128.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/assert.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/ccm-star.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/crc16.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/gcr.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/ifft.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/list.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/me.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/me_tabs.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/memb.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/mmem.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/petsciiconv.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/print-stats.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/dev/random.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/ringbuf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/ringbufindex.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/settings.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/lib/trickle-timer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/abc.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/announcement.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/broadcast-announcement.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/broadcast.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/chameleon-bitopt.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/chameleon-raw.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/chameleon.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/channel.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/collect-link-estimate.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/collect-neighbor.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/collect.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/ipolite.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/mesh.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/multihop.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/neighbor-discovery.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/netflood.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/packetqueue.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/polite-announcement.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/polite.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/rime.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/rimestats.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/rmh.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/route-discovery.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/route.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/rucb.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/rudolph1.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/rudolph2.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/runicast.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/stbroadcast.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/stunicast.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/timesynch.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/trickle.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/rime/unicast.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/lib/newlib/syscalls.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/arm/common/sys/mtarch.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/link-stats.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/linkaddr.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/nbr-table.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/net-debug.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/netstack.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/packetbuf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/queuebuf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/csma.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/frame802154.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/frame802154e-ie.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/framer-802154.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/framer-nullmac.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/mac-sequence.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/mac.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/nordc.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/nullmac.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/nullrdc-noframer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/nullrdc.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/phase.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/contikimac/contikimac-framer.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/mac/contikimac/contikimac.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/llsec/anti-replay.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/llsec/ccm-star-packetbuf.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/llsec/nullsec.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/core/net/llsec/noncoresec/noncoresec.c
+  CC        ../deployment/deployment.c
+  CC        env-sensors.c
+  CC        env-oled.c
+  CC        drivers/i2c_sw.c
+  CC        drivers/si7021.c
+  CC        drivers/hdc1080.c
+  CC        drivers/tsl2561.c
+  CC        drivers/bmp180.c
+  CC        drivers/ssd1306.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/dev/cc2538/dev/cc2592.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/platform/cc2538dk-lwb/node-id.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/net/glossy/glossy.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/net/lwb/lwb.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/net/lwb/lwb-g-sync.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/net/lwb/lwb-g-rr.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/net/lwb/lwb-sched-compressor.c
+  CC        /tmp/lwb-node-ud_8amcs/lwb-cc2538dk/net/lwb/lwb-scheduler-static.c
+  CC        /workspace/scratch/1e774bf9c3a8/inspection/build_contiki/cpu/cc2538/cc2538.lds
+  LD        lwb-cc2538dk-env.elf
+arm-none-eabi-objcopy -O ihex lwb-cc2538dk-env.elf lwb-cc2538dk-env.hex
+arm-none-eabi-objcopy -O binary --gap-fill 0xff lwb-cc2538dk-env.elf lwb-cc2538dk-env.bin
+cp lwb-cc2538dk-env.elf lwb-cc2538dk-env.cc2538dk
+rm lwb-cc2538dk-env.co

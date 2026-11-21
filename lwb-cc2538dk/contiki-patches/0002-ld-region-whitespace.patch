@@ -1,0 +1,11 @@
+--- a/cpu/cc2538/cc2538.lds
++++ b/cpu/cc2538/cc2538.lds
+@@ -68,7 +68,7 @@
+         *(.text*)
+         *(.rodata*)
+         _etext = .;
+-    } > FLASH_FW= 0
++    } > FLASH_FW = 0
+ 
+     .socdata (NOLOAD) :
+     {

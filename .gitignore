@@ -1,0 +1,70 @@
+# Secrets / local config
+.env
+.env.*
+!.env.example
+!gateway.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+key.properties
+google-services.json
+GoogleService-Info.plist
+id_rsa*
+id_ed25519*
+known_hosts
+
+# Python
+__pycache__/
+*.pyc
+.venv*/
+venv/
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# Node / web
+node_modules/
+frontend/dist/
+
+# Flutter / Android / iOS
+.dart_tool/
+.flutter-plugins*
+build/
+.gradle/
+local.properties
+ios/Flutter/ephemeral/
+*.iml
+.idea/
+
+# Firmware build output
+obj_*/
+*.o
+*.d
+*.a
+*.elf
+*.hex
+*.bin
+*.map
+*.cc2538dk
+
+# Misc
+*.bak
+*.bak-*
+*.swp
+*.zip
+*.rar
+*.log
+.DS_Store
+Thumbs.db
+
+# Altium / KiCad history & previews
+History/
+Preview/
+__Previews/
+
+# Bang chung kiem thu firmware (tong < 1 MB)
+!lwb-cc2538dk/validation/**/*.log

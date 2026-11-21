@@ -1,0 +1,18 @@
+{
+  "template_only": true,
+  "run_id": null,
+  "physical_rf_isolation_method": null,
+  "host_id": 1,
+  "sources": [3],
+  "relay_ids": [2],
+  "intended_bidirectional_links": [[1, 2], [2, 3]],
+  "intended_suppressed_links": [[1, 3]],
+  "pairwise_link_test_run_ids": [],
+  "relay_off_run_ids": [],
+  "relay_on_run_ids": [],
+  "distance_measurements_m": {},
+  "antenna_orientation_and_height": null,
+  "power_supply_and_rf_settings": null,
+  "observed_topology_evidence": null,
+  "multihop_conclusion": null
+}

@@ -1,0 +1,16 @@
+[Unit]
+Description=LWB MQTT Publisher
+After=network-online.target lwb-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+EnvironmentFile=/etc/lwb-gateway/gateway.env
+WorkingDirectory=/opt/lwb-gateway
+ExecStart=/opt/lwb-gateway/.venv/bin/python /opt/lwb-gateway/mqtt_publisher.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

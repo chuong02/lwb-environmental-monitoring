@@ -1,0 +1,17 @@
+PASS: packet size, delay/wrap, duplicate/ordering, codec/invalid input, slot zero, poll flags
+test_duplicates_and_reordering (test_analyzer.AnalyzerTests.test_duplicates_and_reordering) ... ok
+test_join_failure (test_analyzer.AnalyzerTests.test_join_failure) ... ok
+test_missing_host_data_log_detected (test_analyzer.AnalyzerTests.test_missing_host_data_log_detected) ... ok
+test_parse_timestamp_prefix_and_malformed (test_analyzer.AnalyzerTests.test_parse_timestamp_prefix_and_malformed) ... ok
+test_queue_loss_and_skip_separate_from_rf (test_analyzer.AnalyzerTests.test_queue_loss_and_skip_separate_from_rf) ... ok
+test_reboot_and_count_conflicts_rejected (test_analyzer.AnalyzerTests.test_reboot_and_count_conflicts_rejected) ... ok
+test_report_lost_source_uart_fallback (test_analyzer.AnalyzerTests.test_report_lost_source_uart_fallback) ... ok
+test_tail_loss_and_p95 (test_analyzer.AnalyzerTests.test_tail_loss_and_p95) ... ok
+test_unknown_denominator (test_analyzer.AnalyzerTests.test_unknown_denominator) ... ok
+test_unsynchronized_delays_excluded (test_analyzer.AnalyzerTests.test_unsynchronized_delays_excluded) ... ok
+test_zero_reception_source_retained (test_analyzer.AnalyzerTests.test_zero_reception_source_retained) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.001s
+
+OK

@@ -1,0 +1,4 @@
+# Reference only; installer preserves your existing pubspec.yaml.
+dependencies:
+  http: ^1.6.0
+  shared_preferences: ^2.5.3

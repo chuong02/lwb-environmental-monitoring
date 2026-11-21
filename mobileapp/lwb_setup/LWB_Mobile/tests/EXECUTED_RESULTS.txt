@@ -1,0 +1,25 @@
+test_clamp (__main__.CoreTests.test_clamp) ... ok
+test_future_error (__main__.CoreTests.test_future_error) ... ok
+test_invalid_parameters (__main__.CoreTests.test_invalid_parameters) ... ok
+test_invalid_policy (__main__.CoreTests.test_invalid_policy) ... ok
+test_live_boundary (__main__.CoreTests.test_live_boundary) ... ok
+test_never (__main__.CoreTests.test_never) ... ok
+test_null_sentinel (__main__.CoreTests.test_null_sentinel) ... ok
+test_offline_boundary (__main__.CoreTests.test_offline_boundary) ... ok
+test_reading_units (__main__.CoreTests.test_reading_units) ... ok
+test_scale_and_zero (__main__.CoreTests.test_scale_and_zero) ... ok
+test_small_skew (__main__.CoreTests.test_small_skew) ... ok
+test_stale_boundary (__main__.CoreTests.test_stale_boundary) ... ok
+test_apply_and_rollback_does_not_touch_existing_code (__main__.InstallerTests.test_apply_and_rollback_does_not_touch_existing_code) ... ok
+test_python_syntax (__main__.InstallerTests.test_python_syntax) ... ok
+test_refuse_wrong_project (__main__.InstallerTests.test_refuse_wrong_project) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.015s
+
+OK
+Installed 7 files. No migration or database write was performed.
+Backup: /tmp/tmpk2h8etrt/lwb-backend_mobile_backup_20261022_155519_836278
+Existing Web APIs, settings.py, models.py and MQTT Consumer were not modified.
+Next: python manage.py runserver 127.0.0.1:8001 --settings=config.lwb_mobile_local
+Mobile V1 files rolled back; database unchanged.

@@ -1,0 +1,1 @@
+run_id,test_type,condition,replicate,host_id,source_ids,relay_ids,host_source_m,host_relay_m,relay_source_m,environment,antenna_height_m,channel,tx_drive_dbm,n_sync,n_data_tx,packets,ipi_s,oled,sensor_mode,firmware_manifest,capture_directory,join_result,notes

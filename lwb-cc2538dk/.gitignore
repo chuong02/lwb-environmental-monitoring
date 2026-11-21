@@ -1,0 +1,11 @@
+﻿*.o
+*.d
+*.a
+obj_*/
+*.elf
+*.hex
+*.bin
+*.map
+*.cc2538dk
+__pycache__/
+*.pyc

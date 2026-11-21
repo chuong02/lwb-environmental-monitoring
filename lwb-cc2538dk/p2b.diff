@@ -1,0 +1,477 @@
+diff --git a/README_VI.md b/README_VI.md
+index 2d01b68..5f4f891 100644
+--- a/README_VI.md
++++ b/README_VI.md
+@@ -10,8 +10,9 @@ các cờ đều tắt: firmware chạy y như bản 12/11** (đã đối chiế
+ 
+ | Make variable | Mặc định | Ý nghĩa |
+ |---|---:|---|
+-| `GEN_MODE` | 0 | 0 = etimer IPI như cũ. 1 = tạo gói `GEN_LEAD_MS` ms **trước khi vòng kế tiếp bắt đầu**; cảm biến (I2C + OLED) chỉ đọc ngay **sau** mỗi vòng, gói chỉ copy từ bộ đệm |
+-| `GEN_LEAD_MS` | 100 | Chỉ dùng khi `GEN_MODE=1`; 50..3000. `tx_network_ticks` vẫn lấy lúc enqueue |
++| `GEN_MODE` | 0 | 0 = etimer IPI như cũ. 1 = tạo gói `GEN_LEAD_MS` ms **trước khi vòng kế tiếp bắt đầu**; cảm biến I2C được đọc **ngay trước khi enqueue** (nếu đủ thời gian, xem `SENSOR_BUDGET_MS`), OLED chỉ cập nhật ngay **sau** mỗi vòng |
++| `GEN_LEAD_MS` | 250 | Chỉ dùng khi `GEN_MODE=1`; 50..3000. Phải chừa chỗ cho lần đọc I2C: nên ≥ 30 + `SENSOR_BUDGET_MS` + ~20. `tx_network_ticks` vẫn lấy lúc enqueue (sau khi đọc cảm biến) |
++| `SENSOR_BUDGET_MS` | 150 | Chỉ dùng khi `GEN_MODE=1`; 20..1000. Chỉ đọc I2C nếu còn > 30 + `SENSOR_BUDGET_MS` ms tới vòng kế tiếp; nếu không, dùng giá trị cũ và đếm `sensor_stale` |
+ | `FRESH_ONLY` | = `GEN_MODE` | 1 = không tạo gói (không tăng seq) khi chưa synced hoặc chưa có stream ack; nếu hàng đợi còn gói cũ thì bỏ gói cũ, giữ gói mới |
+ | `PACKETS` | 100 | **0 = chế độ liên tục**: phát vô hạn, không có bước chốt/drain |
+ | `REPORT_EVERY` | 60 | Chỉ khi `PACKETS=0`: cứ mỗi `REPORT_EVERY` gói DATA, một lượt phát kế tiếp dành cho REPORT cộng dồn (5..10000) |
+@@ -19,13 +20,19 @@ các cờ đều tắt: firmware chạy y như bản 12/11** (đã đối chiế
+ Khác biệt cần biết:
+ 
+ - `GEN_MODE=1` cần getter `lwb_get_next_round_ticks()` trong `net/lwb/lwb.c` (chỉ được biên dịch khi
+-  `LWB_ROUND_TIMING_CONF=1`, Makefile tự đặt theo `GEN_MODE`). Delay kỳ vọng với IPI=5 và 1 source
+-  ≈ `GEN_LEAD_MS` + ~100 ms (sync + slot) ≈ 0,2 s; thêm ~70 ms cho mỗi slot đứng trước. Nếu timer bị trễ
++  `LWB_ROUND_TIMING_CONF=1`, Makefile tự đặt theo `GEN_MODE`). Delay kỳ vọng (enqueue → HOST) với IPI=5, 1 source,
++  `GEN_LEAD_MS=250`: ≈ `GEN_LEAD_MS` − thời gian đọc I2C (~40 ms) + ~100 ms (sync + slot) ≈ 0,31 s; thêm ~70 ms cho mỗi slot đứng trước.
++  Tuổi dữ liệu cảm biến lúc enqueue ≈ 40 ms (trước P2b ≈ 4,7 s), tức tuổi tại HOST ≈ 0,35 s thay vì ≈ 4,9 s; đổi lại `delay_ms`
++  tăng ~0,1 s so với `GEN_LEAD_MS=100`. Nếu timer bị trễ
+   tới giữa vòng, hoặc node bắt đầu đo đúng lúc đang giữa vòng (chưa biết mốc vòng), gói vẫn được tạo đúng 1 lần nhưng
+   dời tới cuối vòng đó (hàng đợi LWB không an toàn với ISR) nên đi ở vòng sau với delay ≈ 5 s: ngoại lệ có chủ ý,
+   dùng p95/median khi đọc delay. Với `IPI>5` gói đầu tiên có thể chờ thêm tới `IPI` giây để vào đúng vòng có slot.
+-- Với `GEN_MODE=1`, `SAMPLE_PERIOD` bị bỏ qua ở SOURCE (đọc cảm biến 1 lần/vòng, ngay sau vòng) nên OLED
+-  của SOURCE làm mới mỗi ~5 s thay vì 1 s. HOST với `HOST_LOCAL_SENSOR=1` giữ chu kỳ cũ.
++- Với `GEN_MODE=1`, `SAMPLE_PERIOD` bị bỏ qua ở SOURCE: cảm biến I2C (HDC1080/Si7021, TSL2561, BMP180, không OLED) được đọc 1 lần ngay trước mỗi lần
++  enqueue; OLED chỉ cập nhật 1 lần/vòng ngay sau vòng (hiển thị mẫu của lần gửi gần nhất) nên làm mới mỗi ~5 s thay vì 1 s.
++  HOST với `HOST_LOCAL_SENSOR=1` giữ chu kỳ cũ. Nếu lúc timer tới hạn còn ít hơn 30 + `SENSOR_BUDGET_MS` ms tới vòng kế tiếp (timer bị trễ), SOURCE
++  không đọc mà dùng giá trị cũ trong bộ đệm và tăng `sensor_stale`; nếu vòng bắt đầu giữa lúc đọc thì gói dời tới cuối vòng (đọc lại lúc đó).
++  `PERF_GEN` thêm cuối dòng `sample_age_ms` (từ lúc bắt đầu đọc cảm biến tới lúc enqueue) và `sensor_stale`; `PERF_SOURCE_SUMMARY` thêm `sensor_stale` ở cuối
++  (chỉ khi `GEN_MODE=1`). Với `GEN_MODE=0` hai dòng này không đổi.
+ - `FRESH_ONLY=1` thêm dòng UART `PERF_GATE` (bỏ lượt vì chưa sync/chưa ack), `PERF_SUPERSEDE` (bỏ gói cũ) và
+   hai trường `superseded`, `gate_skipped` ở cuối `PERF_SOURCE_SUMMARY`. Quan hệ chốt mới:
+   `queued = tx_started + tx_start_failed + discarded + superseded`; `tools/analyze_logs.py` đã tính
+@@ -59,7 +66,7 @@ python3 tools/build_node.py --contiki ~/contiki --node 1 --role HOST --host 1 \
+ ```
+ 
+ Muốn HOST hiện nhiệt độ/độ ẩm khi giám sát liên tục: thêm `--set HOST_LOCAL_SENSOR=1` vào lệnh build HOST.
+-Dùng `--set GEN_LEAD_MS=...`, `--set FRESH_ONLY=0`, `--set REPORT_EVERY=...` để đổi các giá trị trên.
++Dùng `--set GEN_LEAD_MS=...`, `--set SENSOR_BUDGET_MS=...`, `--set FRESH_ONLY=0`, `--set REPORT_EVERY=...` để đổi các giá trị trên.
+ 
+ **Trạng thái kiểm tra:** chưa build bằng GCC 4.9.3, chưa nạp kit. Đã kiểm tra cú pháp bằng gcc host,
+ chạy mô phỏng logic (stub LWB) và `tests/test_analyzer.py`. Đo delay/ổn định thật trên kit vẫn cần làm.
+@@ -209,7 +216,7 @@ Contiki cũ không tự theo dõi mọi thay đổi của cờ compiler.
+ | Make variable | Mặc định | Ý nghĩa |
+ |---|---:|---|
+ | `PACKETS` | 100 | Số lượt tạo dữ liệu theo lịch, 1..2000; dùng 100 để chạy thử. `0` = chế độ liên tục (xem mục "Cập nhật 15/11") |
+-| `GEN_MODE`, `GEN_LEAD_MS`, `FRESH_ONLY`, `REPORT_EVERY` | 0, 100, `GEN_MODE`, 60 | Đồng bộ pha tạo gói / chống dồn hàng đợi / REPORT liên tục; xem mục "Cập nhật 15/11" |
++| `GEN_MODE`, `GEN_LEAD_MS`, `SENSOR_BUDGET_MS`, `FRESH_ONLY`, `REPORT_EVERY` | 0, 250, 150, `GEN_MODE`, 60 | Đồng bộ pha tạo gói / chống dồn hàng đợi / REPORT liên tục; xem mục "Cập nhật 15/11" |
+ | `IPI` | 5 | Giây giữa hai lượt; 5..3600, bội số của 5 với scheduler hiện tại |
+ | `SOURCE_IDS` | 2 | Danh sách nguồn dự kiến, ví dụ `3` hoặc `3:4:5` |
+ | `MAX_NODE_ID` | 6 | Giới hạn ID dùng cấp phát thống kê; tối đa 32, phải kiểm tra RAM khi tăng |
+diff --git a/apps/lwb-cc2538dk-env/Makefile b/apps/lwb-cc2538dk-env/Makefile
+index 058b5f4..1468893 100644
+--- a/apps/lwb-cc2538dk-env/Makefile
++++ b/apps/lwb-cc2538dk-env/Makefile
+@@ -31,9 +31,11 @@ DATA_BUFFERS ?= 16
+ N_SYNC ?= 3
+ N_DATA_TX ?= 3
+ # GEN_MODE: 0 = legacy etimer IPI; 1 = packet generation phase-aligned to the LWB round
+-# (enqueue GEN_LEAD_MS before the next round starts, sensors read right after a round).
++# (enqueue GEN_LEAD_MS before the next round starts; the sensors are read just before the
++# enqueue when SENSOR_BUDGET_MS + 30 ms of idle time remain, the OLED right after a round).
+ GEN_MODE ?= 0
+-GEN_LEAD_MS ?= 100
++GEN_LEAD_MS ?= 250
++SENSOR_BUDGET_MS ?= 150
+ # FRESH_ONLY: 1 = no packet while unsynced / without stream ack; a stale queued packet is
+ # replaced by the new one. Follows GEN_MODE unless given explicitly.
+ FRESH_ONLY ?= $(GEN_MODE)
+@@ -61,6 +63,7 @@ override DEFINES += CC2538_RF_CONF_CHANNEL=$(CHANNEL) CC2592_CONF_TX_POWER_DBM=$
+ override DEFINES += LWB_CONF_MAX_DATA_BUF_ELEMENTS=$(DATA_BUFFERS)
+ override DEFINES += LWB_CONF_N_SYNC=$(N_SYNC) LWB_CONF_N_RR=$(N_DATA_TX)
+ override DEFINES += UP_GEN_MODE=$(GEN_MODE) UP_GEN_LEAD_MS=$(GEN_LEAD_MS)
++override DEFINES += UP_SENSOR_BUDGET_MS=$(SENSOR_BUDGET_MS)
+ override DEFINES += UP_FRESH_ONLY=$(FRESH_ONLY) UP_REPORT_EVERY=$(REPORT_EVERY)
+ # lwb_get_next_round_ticks() is compiled into net/lwb only for GEN_MODE=1.
+ override DEFINES += LWB_ROUND_TIMING_CONF=$(GEN_MODE)
+diff --git a/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c b/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
+index 9831b24..410d9bf 100644
+--- a/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
++++ b/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
+@@ -5,8 +5,10 @@
+  * HOST_LOCAL_SENSOR=1 displays its own sensors; otherwise it displays received
+  * sensor data during a guarded background period.
+  * Optional build flags (all default to the behaviour above; see docs/PHASE_ALIGN_NOTES.md):
+- *   GEN_MODE=1    SOURCE enqueues GEN_LEAD_MS before the next LWB round starts and reads
+- *                 the sensors right after a round; the packet copies the sensor buffer.
++ *   GEN_MODE=1    SOURCE enqueues GEN_LEAD_MS before the next LWB round starts. Just before
++ *                 the enqueue it reads the sensors (I2C only) when SENSOR_BUDGET_MS of idle
++ *                 time remain, else it reuses the old sample (sensor_stale). The OLED is
++ *                 refreshed right after a round.
+  *   FRESH_ONLY=1  no packet while unsynced / without stream ack; stale queued packet is
+  *                 replaced by the new one (counted as "superseded").
+  *   PACKETS=0     continuous mode: unbounded DATA, cumulative REPORT every REPORT_EVERY.
+@@ -83,7 +85,11 @@ static uint8_t gen_armed;          /* gen_et is pending */
+ static uint8_t gen_deferred;       /* release postponed to the end of the running round */
+ static uint16_t gen_wait_rounds;   /* round ends to skip first (IPI > round period) */
+ static volatile uint8_t round_end_flag;
+-static uint8_t sample_due;         /* read sensors in the idle time after this round */
++static uint32_t sensor_stale;      /* releases that reused an old sample (no time for I2C) */
++static uint32_t sample_rt;         /* RTIMER_NOW() when the last sensor read started */
++#if LWB_ENV_OLED_CONF
++static uint8_t oled_due;           /* refresh the SOURCE OLED in the idle time after this round */
++#endif
+ #endif
+ 
+ /* Single producer (rtimer) / single consumer (process) log queue. */
+@@ -159,11 +165,15 @@ static void clear_sensor(void)
+   latest.pressure_pa = ENV_INVALID_PRESSURE_PA;
+ }
+ 
+-static void sample_sensor(void)
++/* I2C reads only (HDC1080/Si7021, TSL2561, BMP180); no OLED. */
++static void sensor_read(void)
+ {
+   int16_t t, bt;
+   uint16_t rh, light;
+   int32_t pressure;
++#if UP_GEN_MODE
++  sample_rt = (uint32_t)RTIMER_NOW(); /* start of the read: the age includes the I2C time */
++#endif
+   clear_sensor(); sensor_mask = 0;
+ #if ENV_USE_TEMP_RH_CONF
+   if(env_read_temp_rh(&t, &rh) == 0) {
+@@ -180,9 +190,22 @@ static void sample_sensor(void)
+   }
+ #endif
+   (void)t; (void)bt; (void)rh; (void)light; (void)pressure;
++}
++
+ #if LWB_ENV_OLED_CONF
+-  /* Called only when local sensing is enabled, on SOURCE or HOST. */
++/* Called only when local sensing is enabled, on SOURCE or HOST. */
++static void sensor_oled(void)
++{
+   env_oled_show_env(&latest);
++}
++#endif
++
++/* Read + display, as before. Used by the legacy SOURCE, the HOST local sensor and at boot. */
++static void sample_sensor(void)
++{
++  sensor_read();
++#if LWB_ENV_OLED_CONF
++  sensor_oled();
+ #endif
+   last_sample_s = clock_seconds();
+ }
+@@ -488,6 +511,17 @@ static void fresh_drop_stale(void)
+ }
+ #endif
+ 
++#if UP_GEN_MODE
++/* PERF_GEN extra fields: age of the sensor sample at enqueue (sample read -> enqueue) and
++ * the running count of releases that had to reuse an old sample. */
++#define GEN_AGE_FMT ",sample_age_ms,%lu,sensor_stale,%lu"
++#define GEN_AGE_ARGS , (unsigned long)(ticks_to_us((uint32_t)RTIMER_NOW() - sample_rt) / 1000UL), \
++  (unsigned long)sensor_stale
++#else
++#define GEN_AGE_FMT ""
++#define GEN_AGE_ARGS
++#endif
++
+ /* Build one DATA packet from the sensor buffer (no I2C here) and enqueue it. */
+ static void source_emit_data(void)
+ {
+@@ -510,9 +544,9 @@ static void source_emit_data(void)
+   p.tx_network_ticks = lwb_get_network_time_ticks();
+   if(lwb_queue_packet((uint8_t *)&p, sizeof(p), UP_HOST_ID) == LWB_STATUS_SUCCESS) queued++;
+   else queue_failed++;
+-  printf("PERF_GEN,run,%lu,source,%u,seq,%u,generated,%u,queued,%u,queue_failed,%u,tx_net_ticks,%lu,time_valid,%u,sensor_mask,%u\r\n",
++  printf("PERF_GEN,run,%lu,source,%u,seq,%u,generated,%u,queued,%u,queue_failed,%u,tx_net_ticks,%lu,time_valid,%u,sensor_mask,%u" GEN_AGE_FMT "\r\n",
+     (unsigned long)UP_RUN_ID, node_id, p.seq, generated, queued, queue_failed,
+-    (unsigned long)p.tx_network_ticks, !!(p.flags & UP_TIME_VALID), sensor_mask);
++    (unsigned long)p.tx_network_ticks, !!(p.flags & UP_TIME_VALID), sensor_mask GEN_AGE_ARGS);
+ #if UP_CONTINUOUS
+   if(gen_total % UP_REPORT_EVERY == 0) report_due = 1;
+ #endif
+@@ -550,6 +584,23 @@ static void source_emit_report(void)
+ #define GEN_LEAD_TICKS (((uint32_t)UP_GEN_LEAD_MS * (uint32_t)RTIMER_SECOND) / 1000UL)
+ #define GEN_GUARD_MS 30 /* same guard lwb_drop_tx_queue() applies internally */
+ 
++/* Fill the sensor buffer just before a DATA packet is built: read the sensors (I2C only, no
++ * OLED) if GEN_GUARD_MS + SENSOR_BUDGET_MS of idle time remain, else keep the old sample and
++ * count sensor_stale. Returns 0 if the round started during the read: the release then moves
++ * to the end of that round (gen_deferred) and nothing has been enqueued. */
++static uint8_t gen_sense(void)
++{
++  if(lwb_background_allowed(GEN_GUARD_MS + UP_SENSOR_BUDGET_MS)) {
++    sensor_read();
++    if(!lwb_background_allowed(GEN_GUARD_MS)) { gen_deferred = 1; return 0; }
++  } else if(!lwb_background_allowed(GEN_GUARD_MS)) {
++    gen_deferred = 1; return 0;
++  } else {
++    sensor_stale++;
++  }
++  return 1;
++}
++
+ /* Release now. The caller has verified the safe window (queue ops are not ISR-safe). */
+ static void gen_emit(void)
+ {
+@@ -560,6 +611,7 @@ static void gen_emit(void)
+ #if UP_CONTINUOUS
+   if(report_due) { source_emit_report(); return; }
+ #endif
++  if(!gen_sense()) return;
+   source_emit_data();
+ #if !UP_CONTINUOUS
+   if(generated == UP_PACKETS) { state = STATE_DRAIN; drain_started_s = clock_seconds(); }
+@@ -607,15 +659,20 @@ static void gen_round_end(void)
+     } else if(gen_wait_rounds) gen_wait_rounds--;
+     else gen_plan();
+   }
+-  if(sensor_enabled) sample_due = 1;
++#if LWB_ENV_OLED_CONF
++  if(sensor_enabled) oled_due = 1;
++#endif
+ }
+ 
+ static void gen_service(process_event_t ev, process_data_t data)
+ {
+   if(ev == PROCESS_EVENT_TIMER && data == &gen_et && gen_armed) { gen_armed = 0; gen_fire(); }
+   if(round_end_flag) { round_end_flag = 0; gen_round_end(); }
+-  /* I2C reads happen in the idle time right after a round, never close to the next one. */
+-  if(sample_due && lwb_background_allowed(BG_BUDGET_MS)) { sample_due = 0; sample_sensor(); }
++#if LWB_ENV_OLED_CONF
++  /* The OLED (slow) is refreshed in the idle time right after a round, never close to the
++   * next one. It shows the sample of the last release; the I2C read is done in gen_sense(). */
++  if(oled_due && lwb_background_allowed(BG_BUDGET_MS)) { oled_due = 0; sensor_oled(); }
++#endif
+ }
+ #else
+ /* Legacy release: etimer with period IPI, no relation to the LWB round phase. */
+@@ -673,6 +730,13 @@ static void source_generate(void)
+ #define SUMMARY_FRESH_FMT ""
+ #define SUMMARY_FRESH_ARGS
+ #endif
++#if UP_GEN_MODE
++#define SUMMARY_GEN_FMT ",sensor_stale,%lu"
++#define SUMMARY_GEN_ARGS , (unsigned long)sensor_stale
++#else
++#define SUMMARY_GEN_FMT ""
++#define SUMMARY_GEN_ARGS
++#endif
+ 
+ static void source_close(uint8_t timed_out)
+ {
+@@ -691,11 +755,11 @@ static void source_close(uint8_t timed_out)
+   /* FRESH_ONLY adds ",superseded,N,gate_skipped,M": superseded entries were queued but
+    * neither sent nor discarded at the timeout, so queued = tx_started + tx_start_failed
+    * + discarded + superseded. */
+-  printf("PERF_SOURCE_SUMMARY,run,%lu,source,%u,expected,%u,generated,%u,queued,%u,tx_started,%u,queue_failed,%u,deadline_missed,%u,tx_start_failed,%u,discarded,%u,invalid_sensor,%u,unsynced_generated,%u,tx_log_dropped,%u,drain_timeout,%u" SUMMARY_FRESH_FMT "\r\n",
++  printf("PERF_SOURCE_SUMMARY,run,%lu,source,%u,expected,%u,generated,%u,queued,%u,tx_started,%u,queue_failed,%u,deadline_missed,%u,tx_start_failed,%u,discarded,%u,invalid_sensor,%u,unsynced_generated,%u,tx_log_dropped,%u,drain_timeout,%u" SUMMARY_FRESH_FMT SUMMARY_GEN_FMT "\r\n",
+     (unsigned long)UP_RUN_ID, node_id, UP_PACKETS, generated, queued, tx_started,
+     queue_failed, deadline_missed, tx_start_failed, discarded, invalid_sensor,
+     unsynced_generated, tx_log_dropped, !!(report_flags & UP_REPORT_DRAIN_TIMEOUT)
+-    SUMMARY_FRESH_ARGS);
++    SUMMARY_FRESH_ARGS SUMMARY_GEN_ARGS);
+   state = STATE_CLOSED; reports_left = UP_REPORT_REPEAT;
+   next_report_s = clock_seconds();
+ }
+@@ -766,8 +830,9 @@ PROCESS_THREAD(lwb_cc2538dk_env_process, ev, data)
+ #endif
+     if(ev != PROCESS_EVENT_TIMER || data != &maintenance_et) continue;
+     etimer_reset(&maintenance_et); now_s = clock_seconds();
+-    /* GEN_MODE=1: a SOURCE reads its sensors only right after a round (gen_service);
+-     * the HOST local sensor keeps the periodic read. */
++    /* GEN_MODE=1: a SOURCE reads its sensors just before each release (gen_sense) and
++     * refreshes its OLED after a round (gen_service); the HOST local sensor keeps the
++     * periodic read. */
+     if(sensor_enabled &&
+ #if UP_GEN_MODE
+        role == ROLE_HOST &&
+diff --git a/apps/lwb-cc2538dk-env/unified-conf.h b/apps/lwb-cc2538dk-env/unified-conf.h
+index 0f73c3a..a4c6951 100644
+--- a/apps/lwb-cc2538dk-env/unified-conf.h
++++ b/apps/lwb-cc2538dk-env/unified-conf.h
+@@ -20,7 +20,13 @@
+ #define UP_GEN_MODE 0
+ #endif
+ #ifndef UP_GEN_LEAD_MS
+-#define UP_GEN_LEAD_MS 100
++#define UP_GEN_LEAD_MS 250
++#endif
++/* GEN_MODE=1: sensors are read (I2C, no OLED) right before the enqueue when at least
++ * GEN_GUARD_MS + SENSOR_BUDGET_MS remain before the next round; else the old sample is
++ * reused and counted in sensor_stale. The lead must leave room for this read. */
++#ifndef UP_SENSOR_BUDGET_MS
++#define UP_SENSOR_BUDGET_MS 150
+ #endif
+ #ifndef UP_FRESH_ONLY
+ #define UP_FRESH_ONLY UP_GEN_MODE
+@@ -35,10 +41,14 @@
+ #error "FRESH_ONLY must be 0 or 1"
+ #endif
+ /* Lead must exceed the 30 ms safe-window guard plus etimer granularity, and
+- * stay well inside the ~4.7 s idle part of a 5 s round. */
++ * stay well inside the ~4.7 s idle part of a 5 s round. For a fresh sensor read at
++ * release time it should also exceed 30 + SENSOR_BUDGET_MS + etimer slack (default 250). */
+ #if UP_GEN_LEAD_MS < 50 || UP_GEN_LEAD_MS > 3000
+ #error "GEN_LEAD_MS must be between 50 and 3000"
+ #endif
++#if UP_SENSOR_BUDGET_MS < 20 || UP_SENSOR_BUDGET_MS > 1000
++#error "SENSOR_BUDGET_MS must be between 20 and 1000"
++#endif
+ #if UP_REPORT_EVERY < 5 || UP_REPORT_EVERY > 10000
+ #error "REPORT_EVERY must be between 5 and 10000"
+ #endif
+diff --git a/docs/PHASE_ALIGN_NOTES.md b/docs/PHASE_ALIGN_NOTES.md
+index 675048f..9fb33a5 100644
+--- a/docs/PHASE_ALIGN_NOTES.md
++++ b/docs/PHASE_ALIGN_NOTES.md
+@@ -105,7 +105,8 @@ I2C là bit-bang (`i2c_sw.c`, `clock_delay_usec(5)` mỗi pha), chặn bằng v
+ Tổng danh nghĩa ≈ 40 ms cảm biến (+ ~0,2 s nếu OLED bật); xấu nhất có retry/recover ≈ vài trăm ms.
+ Ngân sách bảo vệ hiện tại `BG_BUDGET_MS = 700` bao trùm các trường hợp này. Khi `OLED=0` còn ≈ 40–150 ms.
+ Quan trọng: **đọc I2C ngay trước giờ tạo gói có thể làm trễ xử lý etimer của chính app**
+-(cùng 1 process), nên với GEN_MODE=1 việc đọc được đẩy sang ngay sau vòng.
++(cùng 1 process), nên bản P2 đẩy việc đọc sang ngay sau vòng. *(Đã thay bởi P2b: I2C được đọc ngay trước lúc
++enqueue, chỉ OLED còn nằm sau vòng; xem mục "P2b" ở cuối file.)*
+ 
+ ### 0.6 Độ rộng seq; PACKETS và REPORT hiện xử lý ra sao
+ 
+@@ -134,7 +135,8 @@ Quan trọng: **đọc I2C ngay trước giờ tạo gói có thể làm trễ x
+ 1. **Cần 1 getter nhỏ ở `net/lwb`** (bắt buộc, xem Tóm tắt cuối mục "Thay đổi trong net/lwb"). Lý do: mốc bắt đầu vòng theo đồng hồ cục bộ chỉ có trong
+    `lwb_context`, không có API công khai; suy từ `lwb_get_network_time_ticks()` thì sai sau khi wrap 2^32.
+    Getter nằm sau cờ `LWB_ROUND_TIMING_CONF` (mặc định 0 → `net/lwb` biên dịch y hệt hiện tại).
+-2. App đã copy gói từ bộ đệm `latest` (không đọc I2C lúc đóng gói); cái cần đổi là *lúc đọc* I2C.
++2. App đã copy gói từ bộ đệm `latest` (không đọc I2C lúc đóng gói); cái cần đổi là *lúc đọc* I2C
++   (P2b: đọc ngay trước khi đóng gói, xem cuối file).
+ 3. Giữa `STATE_SEND` và slot, gói chỉ được tạo/xoá ở "cửa sổ an toàn" (`lwb_background_allowed(30)`)
+    vì hàng đợi LWB không có khóa với ISR.
+ 
+@@ -146,8 +148,8 @@ Quan trọng: **đọc I2C ngay trước giờ tạo gói có thể làm trễ x
+   (`on_sched_end` chỉ đặt cờ `round_end_flag` + `process_poll`), process app lấy mốc vòng kế tiếp bằng
+   `lwb_get_next_round_ticks()`, hẹn `gen_et` tới `mốc - GEN_LEAD_MS` (đổi tick rtimer → tick clock, làm tròn lên),
+   hết giờ thì `gen_emit()` → `source_emit_data()` copy từ bộ đệm `latest` (không I2C) và enqueue; `tx_network_ticks`
+-  lấy lúc enqueue như cũ. Cảm biến (I2C + OLED) đọc 1 lần/vòng ngay sau vòng (`sample_due`, có chặn bởi
+-  `lwb_background_allowed(700)`). Chưa biết mốc vòng (vừa join giữa vòng) → tạo ngay nếu đang trong cửa sổ an toàn,
++  lấy lúc enqueue như cũ. *(P2: cảm biến I2C + OLED đọc 1 lần/vòng ngay sau vòng. P2b: I2C đọc ngay trước enqueue,
++  chỉ OLED còn nằm sau vòng; xem cuối file.)* Chưa biết mốc vòng (vừa join giữa vòng) → tạo ngay nếu đang trong cửa sổ an toàn,
+   nếu không thì dời tới cuối vòng. Timer trễ qua mốc vòng → vẫn đúng **1** gói, dời tới cuối vòng (đi ở vòng sau);
+   luôn chỉ có tối đa 1 timer đang chờ (`gen_armed`), không thể có 2 gói cho cùng 1 vòng.
+   `IPI > 5`: `gen_wait_rounds` bỏ qua `IPI/5 - 1` lần cuối vòng và tự khóa lại pha theo vòng mà node có slot.
+@@ -177,7 +179,7 @@ Lý do: mốc bắt đầu vòng theo đồng hồ cục bộ chỉ nằm trong
+ `lwb_get_network_time_ticks()` bằng phép "mod 5 s" sai vĩnh viễn sau khi tick mạng wrap 2^32 (~36 giờ), mà chế độ
+ liên tục chạy lâu hơn thế. Không sửa `net/glossy`, `lwb-g-*.c`, scheduler.
+ 
+-### Delay kỳ vọng (suy ra từ cấu trúc vòng + mô phỏng; **chưa đo trên kit**)
++### Delay kỳ vọng (suy ra từ cấu trúc vòng + mô phỏng; **chưa đo trên kit**) — số liệu của P2; P2b đổi, xem cuối file
+ 
+ `delay = rx_slot_end(HOST) - tx_network_ticks(enqueue)`. Với IPI=5, 1 source, `GEN_LEAD_MS=100`:
+ `≈ 100 ms (lead) + 1 ms (guard) + 30 (sync) + 40 (gap) + 30 (slot) + 1 = 202 ms` (mô phỏng: 194–202 ms; 194 là gói đầu do
+@@ -195,8 +197,9 @@ trễ/vừa join giữa vòng) và gói đầu tiên khi `IPI > 5`. Nên báo p5
+    `GEN_LEAD_MS` bị chặn tối thiểu 50. Nếu main loop bận (I2C/OLED chạy lố) timer trễ → dời 1 vòng (+5 s).
+ 3. Enqueue/drop hàng đợi chỉ làm trong `lwb_background_allowed(30)` ở GEN_MODE=1 (an toàn với ISR). Ở `GEN_MODE=0` giữ nguyên hành vi cũ
+    (enqueue có thể rơi giữa vòng, không khóa). `FRESH_ONLY=1` với `GEN_MODE=0` có thể không bỏ được gói cũ nếu tick rơi giữa vòng.
+-4. Tuổi dữ liệu cảm biến lúc gửi ≈ 4,7 s (đọc ngay sau vòng) thay vì ≤ 1 s; OLED của SOURCE làm mới ~5 s; `SAMPLE_PERIOD` bị bỏ qua ở
+-   SOURCE khi `GEN_MODE=1`. Thời gian I2C/OLED chỉ là ước lượng từ code (0.5).
++4. *(P2; đã sửa ở P2b)* Tuổi dữ liệu cảm biến lúc gửi ≈ 4,7 s (đọc ngay sau vòng) thay vì ≤ 1 s. P2b đưa việc đọc I2C về ngay trước
++   enqueue (tuổi ≈ 40 ms). Vẫn đúng: OLED của SOURCE làm mới ~5 s; `SAMPLE_PERIOD` bị bỏ qua ở SOURCE khi `GEN_MODE=1`. Thời gian I2C/OLED
++   chỉ là ước lượng từ code (0.5).
+ 5. Dòng `PERF_SUMMARY` chế độ liên tục dài tới ~550 ký tự (> `UART_LINE_BUF_LEN`=512 của `uart-checksum.c`, vượt thì dòng bị cắt và checksum
+    hỏng); Makefile đặt 768 khi `PACKETS=0` (+256 B RAM). Chưa kiểm tra tổng RAM/flash khi link.
+ 6. Một lượt REPORT thay chỗ một gói DATA nên tải DATA thực ≈ `REPORT_EVERY/(REPORT_EVERY+1)` tải danh nghĩa.
+@@ -241,3 +244,91 @@ tests/test_analyzer.py, tests/test_native.c   test mới
+ docs/PHASE_ALIGN_NOTES.md                     (file mới) tài liệu này
+ phase_align.diff                              (file mới) kết quả `git diff` (chỉ gồm file đã được git theo dõi)
+ ```
++
++(Các file đã sửa ở P2b: xem cuối file.)
++
++## P2b – đọc cảm biến ngay trước khi gửi
++
++Phạm vi: chỉ `GEN_MODE=1`, SOURCE. `GEN_MODE=0` giữ nguyên (xem "Đã kiểm tra" bên dưới).
++
++### Vấn đề
++
++Ở P2, SOURCE đọc cảm biến (I2C + OLED) ngay **sau** vòng rồi mới đóng gói ~4,7 s sau đó (`GEN_LEAD_MS` trước vòng kế tiếp).
++Delay enqueue→HOST chỉ ~0,2 s nhưng giá trị trong gói đã **cũ ~4,9 s** (≈4,7 s chờ + ≈0,2 s truyền).
++
++### Thiết kế
++
++- `sample_sensor()` tách thành `sensor_read()` (I2C: HDC1080/Si7021, TSL2561, BMP180; **không** OLED) và `sensor_oled()`.
++  `sample_sensor()` = cả hai (+ `last_sample_s`); vẫn là hàm được gọi ở `GEN_MODE=0`, ở HOST_LOCAL_SENSOR và lúc khởi động.
++- Khi `gen_et` tới hạn (`gen_fire()` → `gen_emit()` → `gen_sense()`), sau `fresh_gate()` / `fresh_drop_stale()` và nhánh REPORT:
++  - nếu `lwb_background_allowed(GEN_GUARD_MS + SENSOR_BUDGET_MS)` (30 + 150 ms): `sensor_read()` vào bộ đệm `latest`, rồi kiểm tra lại
++    `lwb_background_allowed(GEN_GUARD_MS)`; còn cửa sổ thì `source_emit_data()` ngay.
++  - ngược lại (còn < 180 ms tới vòng, ví dụ timer bị trễ vì main loop bận): **không đọc**, dùng giá trị cũ trong `latest`, `sensor_stale++`, vẫn enqueue
++    nếu còn ≥ 30 ms.
++  - nếu vòng đã bắt đầu *trong lúc đọc* (hoặc không còn 30 ms): không enqueue, `gen_deferred = 1`; gói đi ở cuối vòng đó (cơ chế dời có từ P2),
++    lúc đó cảm biến được đọc lại (giá trị mới, delay ≈ 5 s, không đếm `sensor_stale`). Lần đọc bị bỏ là lãng phí nhưng vô hại.
++- OLED của SOURCE: `gen_round_end()` đặt `oled_due`, `gen_service()` gọi `sensor_oled()` (chỉ OLED, hiển thị `latest` của lần gửi gần nhất)
++  khi `lwb_background_allowed(BG_BUDGET_MS=700)`, như `sample_due` trước đây. Với `OLED=0` không có gì chạy sau vòng.
++- Gói REPORT (chế độ liên tục) không chứa dữ liệu cảm biến nên không đọc cảm biến và không đếm `sensor_stale`.
++- `SENSOR_BUDGET_MS` (Makefile / `--set`, mặc định 150, hợp lệ 20..1000, `#error` ngoài khoảng). `GEN_LEAD_MS` mặc định đổi 100 → 250
++  (Makefile, `unified-conf.h`, README); hợp lệ vẫn 50..3000. Lead nhỏ hơn 30 + `SENSOR_BUDGET_MS` + ~20 ms (độ trễ etimer/process) vẫn biên dịch
++  được nhưng gần như lần nào cũng dùng giá trị cũ (`sensor_stale` tăng liên tục).
++- `PERF_GEN` (UART SOURCE, chỉ khi `GEN_MODE=1`) thêm cuối dòng `,sample_age_ms,N,sensor_stale,M`. `sample_age_ms` = `RTIMER_NOW()` lúc enqueue trừ
++  `RTIMER_NOW()` lúc **bắt đầu** lần đọc cảm biến gần nhất (nên gồm cả thời gian I2C; nếu dùng giá trị cũ thì là tuổi của giá trị cũ, có thể nhiều giây).
++  `PERF_SOURCE_SUMMARY` thêm `,sensor_stale,N` ở cuối (sau `superseded,gate_skipped` nếu có), chỉ khi `GEN_MODE=1`. Các khóa luôn ghép cặp
++  nên `tools/analyze_logs.py` đọc được (đã thử với log mô phỏng) và bỏ qua khóa lạ. Ở `GEN_MODE=0` hai dòng in y hệt trước.
++
++### Delay và tuổi dữ liệu kỳ vọng (mô phỏng; **chưa đo trên kit**)
++
++Timer chạy ở `mốc vòng − GEN_LEAD_MS`; đọc I2C ≈ 22 (HDC1080) + 2 (TSL2561) + 15 (BMP180) ≈ 39 ms; rồi enqueue; slot của node kết thúc ≈ 101 ms sau
++mốc vòng (1 source).
++
++| | P2 (lead 100, đọc sau vòng) | P2b (lead 250, đọc trước khi gửi) |
++|---|---:|---:|
++| `sample_age_ms` (đọc → enqueue) | ≈ 4 700 (chưa in) | ≈ 40 (mô phỏng 38) |
++| delay enqueue→HOST (`delay_ms`) | ≈ 202 ms | ≈ 250 − 39 + 101 ≈ **312 ms** (mô phỏng 306–314 tuỳ pha) |
++| tuổi dữ liệu tại HOST = tuổi + delay | ≈ 4 900 ms | ≈ **350 ms** |
++
++Cần nói rõ khi báo cáo: `delay_ms` mà analyzer tính **tăng ~110 ms** so với P2 (lead tăng 150 ms, còn thời gian I2C nằm *trước* mốc `tx_network_ticks`),
++nhưng tuổi dữ liệu thật giảm ~14 lần. Muốn delay thấp hơn: hạ `GEN_LEAD_MS` (tối thiểu hợp lý ≈ 30 + `SENSOR_BUDGET_MS` + 20 = 200, delay ≈ 262 ms) hoặc hạ
++`SENSOR_BUDGET_MS` (HDC1080 chỉ ~22 ms, retry tối đa ≈ 70 ms). Mỗi slot đứng trước slot của node vẫn cộng thêm ~70 ms. Ngoại lệ vẫn là gói bị dời tới
++cuối vòng (delay ≈ 4,6–5,0 s, nhưng tuổi dữ liệu nhỏ vì cảm biến được đọc lại lúc đó).
++
++### Rủi ro / chưa chắc chắn của P2b
++
++1. Thời gian I2C thật (≈ 40 ms) và ngân sách 150 ms chỉ là ước lượng từ code. Nếu một lần đọc kéo dài hơn phần còn lại của cửa sổ (cảm biến kẹt,
++   `i2c_sw_recover`), vòng bắt đầu giữa chừng và gói bị dời (delay ≈ 4,6 s). Một lần dời lẻ không làm mất gói; nếu lần nào cũng dời thì chỉ còn ≈ 1 gói/2 vòng,
++   vì cơ chế dời có từ P2 chỉ hẹn lại timer ở cuối vòng kế tiếp (mô phỏng `hdc_ms=300`: 38 gói/76 vòng). Dấu hiệu: `delay_ms` ≈ 4,5 s và `generated` thấp hơn dự kiến.
++2. Dùng giá trị cũ khi `gen_et` tới trễ hơn `GEN_LEAD_MS − 180` ms. Nguyên nhân thực tế duy nhất: OLED/I2C của chính app chạy lố vào cuối chu kỳ (OLED ước tính
++   150–250 ms, xa mức 4,5 s). Nếu OLED lớn bất thường thì mọi lần gửi dùng giá trị cũ và `sample_age_ms` tăng dần (mô phỏng OLED 4,7 s).
++3. Giữa lần đọc và lần enqueue, ISR rtimer vẫn chạy được (I2C bit-bang không chặn ngắt); chỉ vòng *bắt đầu* mới là vấn đề, và được chặn bằng hai lần kiểm tra
++   `lwb_background_allowed` quanh lần đọc.
++4. Tuổi dữ liệu tính từ lúc *bắt đầu* đọc (bảo thủ ≈ 40 ms); cảm biến có thời gian chuyển đổi riêng (HDC1080 chờ 20 ms). TSL2561 đọc kết quả của chu kỳ tích phân
++   trước (không chờ) nên kênh sáng có thể cũ hơn `sample_age_ms` (chưa kiểm tra cấu hình tích phân thật).
++5. OLED của SOURCE hiển thị mẫu của lần gửi gần nhất (cũ ≤ 5 s so với lúc hiển thị) và làm mới ~5 s; `SAMPLE_PERIOD` vẫn bị bỏ qua ở SOURCE khi `GEN_MODE=1`.
++6. `sample_age_ms` dùng hiệu `uint32` của `RTIMER_NOW()` nên đúng tới ~36 giờ kể từ lần đọc gần nhất (chỉ sai nếu cảm biến không đọc được lần nào suốt thời gian đó).
++
++### Đã kiểm tra những gì (P2b; không build firmware, không nạp kit)
++
++- `gcc 13.2 -fsyntax-only -Wall -Wextra` (stub Contiki/LWB dựng lại trong thư mục tạm) cho 16 tổ hợp `GEN_MODE{0,1} × OLED{0,1} × PACKETS{100,0} × FRESH_ONLY{0,1}`,
++  cấu hình tắt hết cảm biến, và cấu hình không truyền cờ nào (mặc định lấy từ `unified-conf.h`); không có cảnh báo mới (chỉ `newest_seq` unused đã có từ commit trước khi
++  `GEN_MODE=0` và `FRESH_ONLY=0`). `#error` đúng cho `GEN_LEAD_MS=49/3001`, `SENSOR_BUDGET_MS=19/1001`, `GEN_MODE=1` thiếu getter, `PACKETS=2001`;
++  `GEN_LEAD_MS=50/3000` hợp lệ.
++- Mô phỏng host (stub LWB/etimer/rtimer, chạy chính file ứng dụng, vòng 5 s, slot node ở +70 ms, I2C 22+2+15 ms, OLED 200 ms): với `GEN_MODE=0`, log SOURCE
++  **giống từng byte** commit `09fab22` ở 4 cấu hình (OLED bật/tắt, `FRESH_ONLY` 0/1, `PACKETS=0`) × 4 pha × 2 mức thời gian cảm biến/OLED (300 s mô phỏng).
++  `GEN_MODE=1`: delay 306–314 ms, `sample_age_ms` 38, `sensor_stale` 0, 100/100 gói tới, `PERF_SOURCE_SUMMARY` có `sensor_stale,0`; chế độ liên tục REPORT đúng nhịp.
++  Kịch bản ép: OLED 4,7 s → mọi lần dùng giá trị cũ (`sensor_stale` +1/gói, `sample_age_ms` tăng dần); HDC 300 ms → vòng bắt đầu trong lúc đọc, gói dời, delay ≈ 4,57 s,
++  tuổi 316 ms. (OLED 4,8 s làm mất nhịp 1 gói/2 vòng ở cả P2 lẫn P2b: hành vi có sẵn, không do P2b.)
++- `python -m unittest discover -s tests` → 12 test OK. Chưa chạy `tools/check.py` (cần cây Contiki), chưa build bằng GCC 4.9.3, chưa đo trên kit.
++
++### Danh sách file đã sửa (P2b)
++
++```text
++apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c   tách sensor_read/sensor_oled, gen_sense, oled_due, sample_age_ms/sensor_stale
++apps/lwb-cc2538dk-env/unified-conf.h       GEN_LEAD_MS 250, SENSOR_BUDGET_MS (20..1000)
++apps/lwb-cc2538dk-env/Makefile             GEN_LEAD_MS ?= 250, SENSOR_BUDGET_MS ?= 150, UP_SENSOR_BUDGET_MS
++tools/build_node.py                        --set SENSOR_BUDGET_MS
++README_VI.md                               bảng tham số + mô tả mục 15/11
++docs/PHASE_ALIGN_NOTES.md                  mục này
++p2b.diff                                   (file mới) git diff của các file trên, chưa commit
++```
+diff --git a/tools/build_node.py b/tools/build_node.py
+index d2a5d60..41ebf9b 100644
+--- a/tools/build_node.py
++++ b/tools/build_node.py
+@@ -16,7 +16,7 @@ EXTRA = {"CHANNEL", "TX_POWER_DBM", "N_SYNC", "N_DATA_TX", "DATA_BUFFERS",
+          "DRAIN_TIMEOUT", "REPORT_REPEAT", "SUMMARY_PERIOD", "MAX_DELAY_S",
+          "SAMPLE_PERIOD", "OLED", "HOST_LOCAL_SENSOR", "USE_TEMP_RH", "UART_CHECKSUM",
+          "USE_LIGHT", "USE_BMP", "TEMP_RH_SENSOR", "I2C_SCL", "I2C_SDA",
+-         "GEN_MODE", "GEN_LEAD_MS", "FRESH_ONLY", "REPORT_EVERY"}
++         "GEN_MODE", "GEN_LEAD_MS", "FRESH_ONLY", "REPORT_EVERY", "SENSOR_BUDGET_MS"}
+ 
+ 
+ def main():

@@ -1,0 +1,1717 @@
+--- a/apps/lwb-cc2538dk-env/Makefile
++++ b/apps/lwb-cc2538dk-env/Makefile
+@@ -1,53 +1,58 @@
+ CONTIKI_PROJECT = lwb-cc2538dk-env
+-
+ all: $(CONTIKI_PROJECT)
+-
+-CONTIKI = ../../../../..
+-
++CONTIKI ?= ../../../../..
+ NODEID ?= 1
+-
+-# Default software I2C pins for this kit
+-# SCL = PB3, SDA = PB4
+-I2C_SCL ?= 3
+-I2C_SDA ?= 4
+-
+-# Temp/RH sensor selection:
+-# 0 = auto detect HDC1080 / SI7021
+-# 1 = force SI7021
+-# 2 = force HDC1080
+-TEMP_RH_SENSOR ?= 0
+-
+-# Local display refresh and network transmit intervals, in seconds
++ROLE ?= 0
++HOST_ID ?= 1
++RUN_ID ?= 1
++PACKETS ?= 100
++IPI ?= 5
++SOURCE_IDS ?= 2
++MAX_NODE_ID ?= 6
++START_DELAY ?= 20
++JOIN_TIMEOUT ?= 120
++REPORT_WAIT ?= 15
++DRAIN_TIMEOUT ?= 60
++REPORT_REPEAT ?= 3
++SUMMARY_PERIOD ?= 30
++MAX_DELAY_S ?= 120
+ SAMPLE_PERIOD ?= 1
+-STREAM_IPI ?= 5
+-
+-# Optional sensors on this node
++OLED ?= 1
++HOST_LOCAL_SENSOR ?= 0
+ USE_TEMP_RH ?= 1
+ USE_LIGHT ?= 1
+ USE_BMP ?= 1
+-
++TEMP_RH_SENSOR ?= 0
++I2C_SCL ?= 3
++I2C_SDA ?= 4
++CHANNEL ?= 26
++TX_POWER_DBM ?= 7
++DATA_BUFFERS ?= 16
++N_SYNC ?= 3
++N_DATA_TX ?= 3
+ CONTIKI_WITH_RIME = 1
+-
+ override DEFINES += PROJECT_CONF_H=\"project-conf.h\"
+ override DEFINES += LWB_CUSTOM_CONF_H=\"lwb-custom-conf.h\"
+-override DEFINES += NODE_ID_CONF=$(NODEID)
+-override DEFINES += LWB_CONF_NULL_NETSTACK=1
+-override DEFINES += I2C_SW_SCL_PIN_CONF=$(I2C_SCL)
+-override DEFINES += I2C_SW_SDA_PIN_CONF=$(I2C_SDA)
+-override DEFINES += ENV_TEMP_RH_SENSOR_CONF=$(TEMP_RH_SENSOR)
+-override DEFINES += SENSOR_SAMPLE_PERIOD_CONF=$(SAMPLE_PERIOD)
+-override DEFINES += STREAM_IPI_CONF=$(STREAM_IPI)
+-override DEFINES += ENV_USE_TEMP_RH_CONF=$(USE_TEMP_RH)
+-override DEFINES += ENV_USE_LIGHT_CONF=$(USE_LIGHT)
+-override DEFINES += ENV_USE_BMP180_CONF=$(USE_BMP)
+-
+-# App local sources
+-PROJECTDIRS += ../deployment
+-PROJECTDIRS += drivers
++override DEFINES += NODE_ID_CONF=$(NODEID) LWB_CONF_NULL_NETSTACK=1
++override DEFINES += UP_ROLE=$(ROLE) UP_HOST_ID=$(HOST_ID) UP_RUN_ID=$(RUN_ID)UL
++override DEFINES += UP_PACKETS=$(PACKETS) UP_IPI=$(IPI) UP_MAX_NODE_ID=$(MAX_NODE_ID)
++# Colon separated, without spaces: SOURCE_IDS=2:3:4
++override DEFINES += UP_SOURCE_IDS=\"$(SOURCE_IDS)\"
++override DEFINES += UP_START_DELAY=$(START_DELAY) UP_JOIN_TIMEOUT=$(JOIN_TIMEOUT)
++override DEFINES += UP_REPORT_WAIT=$(REPORT_WAIT) UP_DRAIN_TIMEOUT=$(DRAIN_TIMEOUT)
++override DEFINES += UP_REPORT_REPEAT=$(REPORT_REPEAT) UP_SUMMARY_PERIOD=$(SUMMARY_PERIOD)
++override DEFINES += UP_MAX_DELAY_S=$(MAX_DELAY_S) UP_SAMPLE_PERIOD=$(SAMPLE_PERIOD)
++override DEFINES += LWB_ENV_OLED_CONF=$(OLED) LWB_ENV_HOST_LOCAL_SENSOR_CONF=$(HOST_LOCAL_SENSOR)
++override DEFINES += ENV_USE_TEMP_RH_CONF=$(USE_TEMP_RH) ENV_USE_LIGHT_CONF=$(USE_LIGHT)
++override DEFINES += ENV_USE_BMP180_CONF=$(USE_BMP) ENV_TEMP_RH_SENSOR_CONF=$(TEMP_RH_SENSOR)
++override DEFINES += I2C_SW_SCL_PIN_CONF=$(I2C_SCL) I2C_SW_SDA_PIN_CONF=$(I2C_SDA)
++override DEFINES += CC2538_RF_CONF_CHANNEL=$(CHANNEL) CC2592_CONF_TX_POWER_DBM=$(TX_POWER_DBM)
++override DEFINES += LWB_CONF_MAX_DATA_BUF_ELEMENTS=$(DATA_BUFFERS)
++override DEFINES += LWB_CONF_N_SYNC=$(N_SYNC) LWB_CONF_N_RR=$(N_DATA_TX)
++# Legacy Contiki common symbols; also supported by GCC 4.9.3.
++CFLAGS += -fcommon
++PROJECTDIRS += ../deployment drivers
+ PROJECT_SOURCEFILES += deployment.c env-sensors.c env-oled.c
+ PROJECT_SOURCEFILES += i2c_sw.c si7021.c hdc1080.c tsl2561.c bmp180.c ssd1306.c
+-
+-# LWB/Glossy core and CC2538 low-level radio files
+ include ../../Makefile.lwb
+-
+ include $(CONTIKI)/Makefile.include
+--- /dev/null
++++ b/apps/lwb-cc2538dk-env/env-perf-packet.h
+@@ -0,0 +1,32 @@
++#ifndef ENV_PERF_PACKET_H_
++#define ENV_PERF_PACKET_H_
++#include <stdint.h>
++#define UP_MAGIC 0xe7
++#define UP_VERSION 1
++#define UP_DATA 1
++#define UP_REPORT 2
++#define UP_TIME_VALID 0x80
++#define UP_SENSOR_MASK 0x07
++#define UP_REPORT_DRAIN_TIMEOUT 0x01
++/* New 28-byte wire protocol, little endian on CC2538. The old 18-byte
++ * env_packet_t remains local to the sensor/OLED. No RTC/battery is invented. */
++typedef struct __attribute__((packed)) {
++  uint8_t magic, version, type, flags;
++  uint32_t run;
++  uint16_t source, seq;
++  uint32_t tx_network_ticks; /* Before enqueue; NOT radio TX. */
++  union {
++    struct __attribute__((packed)) {
++      int16_t hdc_temp_x10;
++      uint16_t hdc_hum_x10, light_raw;
++      int16_t bmp_temp_x10;
++      int32_t pressure_pa;
++    } sensor;
++    struct __attribute__((packed)) {
++      uint16_t generated, queued, tx_started, queue_failed;
++      uint16_t deadline_missed, tx_start_failed;
++    } report;
++  } body;
++} up_packet_t;
++typedef char up_size_28[(sizeof(up_packet_t) == 28) ? 1 : -1];
++#endif
+--- /dev/null
++++ b/apps/lwb-cc2538dk-env/env-perf-stats.h
+@@ -0,0 +1,41 @@
++#ifndef ENV_PERF_STATS_H_
++#define ENV_PERF_STATS_H_
++#include <stdint.h>
++typedef struct {
++  uint16_t unique, duplicate, out_of_order, highest_seq, delay_count;
++  uint32_t delay_min_ticks, delay_max_ticks;
++  uint64_t delay_sum_ticks;
++} up_stats_t;
++/* Return 0=invalid, 1=unique, 2=duplicate. */
++static inline uint8_t up_stats_rx(up_stats_t *s, uint8_t *seen,
++  uint16_t seq, uint16_t expected, uint8_t delay_valid, uint32_t delay)
++{
++  uint16_t i;
++  uint8_t mask;
++  if(seq == 0 || seq > expected) return 0;
++  i = seq - 1; mask = (uint8_t)(1u << (i & 7));
++  if(seen[i >> 3] & mask) { s->duplicate++; return 2; }
++  seen[i >> 3] |= mask; s->unique++;
++  if(seq < s->highest_seq) s->out_of_order++;
++  if(seq > s->highest_seq) s->highest_seq = seq;
++  if(delay_valid) {
++    if(!s->delay_count || delay < s->delay_min_ticks) s->delay_min_ticks = delay;
++    if(delay > s->delay_max_ticks) s->delay_max_ticks = delay;
++    s->delay_count++; s->delay_sum_ticks += delay;
++  }
++  return 1;
++}
++static inline uint8_t up_delay(uint32_t tx, uint32_t rx,
++  uint8_t tx_valid, uint8_t rx_valid, uint32_t max_ticks, uint32_t *out)
++{
++  uint32_t d = rx - tx; /* Modulo 2^32; numeric zero is legitimate. */
++  if(!tx_valid || !rx_valid || d > max_ticks) { *out = 0; return 0; }
++  *out = d; return 1;
++}
++/* Percentage *100; -1 means unavailable. */
++static inline int32_t up_ratio(uint16_t received, uint16_t denominator)
++{
++  if(!denominator) return -1;
++  return ((uint32_t)received * 10000UL) / denominator;
++}
++#endif
+--- a/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
++++ b/apps/lwb-cc2538dk-env/lwb-cc2538dk-env.c
+@@ -1,464 +1,426 @@
++/* Unified environmental telemetry and finite, fixed-offered-load LWB test.
++ * Application ACK/retry is intentionally absent. Glossy retransmissions remain.
++ * See README_VI.md for measurement definitions and hardware validation limits.
++ */
+ #include "contiki.h"
+ #include "sys/etimer.h"
++#include "sys/rtimer.h"
++#include "sys/node-id.h"
+ #include "lpm.h"
+-#include "sys/node-id.h"
+-
+-#include <stdio.h>
+-#include <inttypes.h>
+-
+ #include "lwb.h"
+ #include "glossy.h"
+ #include "deployment.h"
++#include "env-packet.h"
+ #include "env-sensors.h"
+ #include "env-oled.h"
+-#include "env-packet.h"
+-
+-PROCESS(lwb_cc2538dk_env_process, "CC2538DK LWB environmental sensor demo");
++#include "env-perf-packet.h"
++#include "env-perf-stats.h"
++#include "unified-conf.h"
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++
++PROCESS(lwb_cc2538dk_env_process, "Unified LWB sensor performance");
+ AUTOSTART_PROCESSES(&lwb_cc2538dk_env_process);
+ 
+-#define LWB_HOST_ID  1
+-#define STREAM_ID    2
+-
+-/* LWB transmit interval in seconds. */
+-#ifndef STREAM_IPI_CONF
+-#define STREAM_IPI_CONF 5
+-#endif
+-
+-/* OLED/local sensor refresh interval in seconds.
+- * This is independent of the LWB transmit interval.
+- */
+-#ifndef SENSOR_SAMPLE_PERIOD_CONF
+-#define SENSOR_SAMPLE_PERIOD_CONF 1
+-#endif
+-
+-#ifndef LWB_ENABLE_AES_CONF
+-#define LWB_ENABLE_AES_CONF 0
+-#endif
+-
+-#ifndef LWB_ENV_OLED_CONF
+-#define LWB_ENV_OLED_CONF 1
+-#endif
+-
+-#ifndef LWB_ENV_HOST_LOCAL_SENSOR_CONF
+-#define LWB_ENV_HOST_LOCAL_SENSOR_CONF 1
+-#endif
+-
+-#ifndef ENV_USE_TEMP_RH_CONF
+-#define ENV_USE_TEMP_RH_CONF 1
+-#endif
+-
+-#ifndef ENV_USE_LIGHT_CONF
+-#define ENV_USE_LIGHT_CONF 1
+-#endif
+-
+-#ifndef ENV_USE_BMP180_CONF
+-#define ENV_USE_BMP180_CONF 1
+-#endif
+-
+-#define SENSOR_MASK_TEMP_RH  0x01
+-#define SENSOR_MASK_LIGHT    0x02
+-#define SENSOR_MASK_BMP180   0x04
+-
+-static struct etimer sample_et;
+-static struct etimer transmit_et;
+-static env_packet_t env_pkt;
+-static uint8_t latest_sensor_mask;
+-static uint8_t last_reported_sensor_mask = 0xff;
+-
+-/*
+- * A rebooted LWB Host loses its stream table, while a continuously powered
+- * Source still considers its previously acknowledged stream JOINED.
+- * Request the stream again after this many consecutive schedules without
+- * any allocated slots.  With a 5-second round, 3 rounds ~= 15 seconds.
+- */
+-#define ENV_REJOIN_NO_SLOT_ROUNDS 3
+-static uint8_t no_slot_rounds;
+-static uint8_t rejoin_request_pending;
+-
+-static uint8_t aes_key[32] = {
+-  0xa5, 0x86, 0xe5, 0x1a, 0x96, 0xfe, 0x56, 0xaa,
+-  0x7f, 0xa3, 0xb4, 0x70, 0xee, 0xe6, 0x0b, 0x04,
+-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+-  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+-};
+-
+-static void
+-on_sched_end(void)
+-{
+-  /* Host needs no stream registration; keep this callback lightweight. */
+-  if(node_id == LWB_HOST_ID) {
+-    return;
+-  }
+-
+-  /* An unacknowledged stream request is already queued/retried by LWB. */
+-  if(lwb_get_joining_state() != LWB_JOINING_STATE_JOINED) {
+-    no_slot_rounds = 0;
+-    return;
+-  }
+-
+-  if(lwb_get_n_my_slots() != 0) {
+-    no_slot_rounds = 0;
+-    return;
+-  }
+-
+-  if(++no_slot_rounds >= ENV_REJOIN_NO_SLOT_ROUNDS) {
+-    no_slot_rounds = 0;
+-    /* Defer application work to its process; keep the callback lightweight. */
+-    rejoin_request_pending = 1;
+-  }
+-}
+-
+-/* CSV output keeps numeric sentinel values for gateway parsing:
+- * invalid int16  = -32768
+- * invalid uint16 = 65535
+- * invalid int32  = -2147483648
+- */
+-static void
+-print_env_csv(const char *tag,
+-              unsigned long host_time,
+-              uint16_t from_id,
+-              const env_packet_t *p)
+-{
+-  /* Machine-readable key/value CSV consumed by the Raspberry Pi gateway. */
+-  printf(
+-    "%s,"
+-    "time,%lu,"
+-    "from,%u,"
+-    "node,%u,"
+-    "seq,%lu,"
+-    "hdc_temp_x10,%d,"
+-    "hdc_hum_x10,%u,"
+-    "light_raw,%u,"
+-    "bmp_temp_x10,%d,"
+-    "pressure_pa,%ld\r\n",
+-
+-    tag,
+-    host_time,
+-    from_id,
+-    p->node_id,
+-    (unsigned long)p->seq,
+-    p->hdc_temp_x10,
+-    p->hdc_hum_x10,
+-    p->light_raw,
+-    p->bmp_temp_x10,
+-    (long)p->pressure_pa
+-  );
+-}
+-
+-static void
+-print_x10_value(int16_t value)
+-{
+-  int32_t v;
+-
+-  v = value;
+-  if(v < 0) {
+-    printf("-");
+-    v = -v;
+-  }
+-
+-  printf("%ld.%ld", (long)(v / 10), (long)(v % 10));
+-}
+-
+-static void
+-print_env_human(const char *tag, unsigned long host_time, uint16_t from_id,
+-                const env_packet_t *p)
+-{
+-  printf("%s_HUMAN time=%lu from=%u node=%u seq=%lu ",
+-         tag,
+-         host_time,
+-         from_id,
+-         p->node_id,
+-         (unsigned long)p->seq);
+-
+-  printf("TRH_temp=");
+-  if(p->hdc_temp_x10 == ENV_INVALID_TEMP_X10) {
+-    printf("-- ");
+-  } else {
+-    print_x10_value(p->hdc_temp_x10);
+-    printf("C ");
+-  }
+-
+-  printf("RH=");
+-  if(p->hdc_hum_x10 == ENV_INVALID_U16) {
+-    printf("-- ");
+-  } else {
+-    printf("%u.%u%% ", p->hdc_hum_x10 / 10, p->hdc_hum_x10 % 10);
+-  }
+-
+-  printf("light=");
+-  if(p->light_raw == ENV_INVALID_U16) {
+-    printf("-- ");
+-  } else {
+-    printf("%u_raw ", p->light_raw);
+-  }
+-
+-  printf("BMP_temp=");
+-  if(p->bmp_temp_x10 == ENV_INVALID_TEMP_X10) {
+-    printf("-- ");
+-  } else {
+-    print_x10_value(p->bmp_temp_x10);
+-    printf("C ");
+-  }
+-
+-  printf("pressure=");
+-  if(p->pressure_pa == ENV_INVALID_PRESSURE_PA) {
+-    printf("-- ");
+-  } else {
+-    printf("%ldPa ", (long)p->pressure_pa);
+-  }
+-
+-  printf("\r\n");
+-}
+-
+-static uint8_t
+-enabled_sensor_count(void)
+-{
+-  uint8_t count;
+-
+-  count = 0;
++#define STREAM_ID 2
++#define BG_BUDGET_MS 700
++#define TX_RING_SIZE 16
++#define STATE_JOIN 0
++#define STATE_SEND 1
++#define STATE_DRAIN 2
++#define STATE_CLOSED 3
++#define STATE_ABORT 4
++
++static uint8_t role, state, fresh_rounds, sensor_mask, sensor_enabled;
++static uint8_t expected_source[UP_MAX_NODE_ID + 1];
++static struct etimer maintenance_et, send_et;
++static env_packet_t latest;
++static uint32_t next_release, drain_started_s, last_slot_s;
++static uint32_t last_sample_s, last_summary_s, next_report_s;
++static uint16_t generated, queued, queue_failed, deadline_missed;
++static uint16_t invalid_sensor, unsynced_generated, discarded;
++static volatile uint16_t tx_started, tx_start_failed, tx_log_dropped;
++static uint8_t report_flags, reports_left, report_attempts, measurement_closed;
++static up_packet_t final_report;
++
++/* Single producer (rtimer) / single consumer (process) log queue. */
++typedef struct { uint16_t seq; uint32_t ticks; uint8_t valid, started; } tx_event_t;
++static tx_event_t tx_ring[TX_RING_SIZE];
++static volatile uint8_t tx_write, tx_read;
++static uint8_t tx_seen[UP_BITMAP_BYTES];
++
++typedef struct {
++  up_stats_t stats;
++  uint8_t seen[UP_BITMAP_BYTES];
++  uint8_t report_received, report_flags;
++  uint16_t generated, queued, tx_started, queue_failed;
++  uint16_t deadline_missed, tx_start_failed;
++  uint16_t relay_samples;
++  uint32_t relay_sum;
++  uint8_t relay_min, relay_max;
++} host_stats_t;
++static host_stats_t host[UP_MAX_NODE_ID + 1];
++
++static uint32_t ticks_to_us(uint32_t ticks)
++{
++  return (uint32_t)(((uint64_t)ticks * 1000000ULL + RTIMER_SECOND / 2) / RTIMER_SECOND);
++}
++
++static const char *role_name(void)
++{
++  return role == ROLE_HOST ? "HOST" : role == ROLE_SOURCE ? "SOURCE" : "RELAY";
++}
++
++static uint8_t parse_sources(void)
++{
++  const char *s = UP_SOURCE_IDS;
++  uint32_t id;
++  uint8_t n = 0;
++  while(*s) {
++    id = 0;
++    if(*s < '0' || *s > '9') return 0;
++    while(*s >= '0' && *s <= '9') {
++      id = id * 10 + (uint8_t)(*s++ - '0');
++      if(id > UP_MAX_NODE_ID) return 0;
++    }
++    if(id == 0 || id == UP_HOST_ID || expected_source[id]) return 0;
++    expected_source[id] = 1; n++;
++    if(!*s) break;
++    if(*s++ != ':' || !*s) return 0;
++  }
++  return n != 0;
++}
++
++static void clear_sensor(void)
++{
++  memset(&latest, 0, sizeof(latest));
++  latest.node_id = node_id;
++  latest.hdc_temp_x10 = latest.bmp_temp_x10 = ENV_INVALID_TEMP_X10;
++  latest.hdc_hum_x10 = latest.light_raw = ENV_INVALID_U16;
++  latest.pressure_pa = ENV_INVALID_PRESSURE_PA;
++}
++
++static void sample_sensor(void)
++{
++  int16_t t, bt;
++  uint16_t rh, light;
++  int32_t pressure;
++  clear_sensor(); sensor_mask = 0;
+ #if ENV_USE_TEMP_RH_CONF
+-  count++;
++  if(env_read_temp_rh(&t, &rh) == 0) {
++    latest.hdc_temp_x10 = t; latest.hdc_hum_x10 = rh; sensor_mask |= 1;
++  }
+ #endif
+ #if ENV_USE_LIGHT_CONF
+-  count++;
++  light = env_read_light_raw();
++  if(light != ENV_INVALID_U16) { latest.light_raw = light; sensor_mask |= 2; }
+ #endif
+ #if ENV_USE_BMP180_CONF
+-  count++;
++  if(env_read_bmp180(&bt, &pressure) == 0) {
++    latest.bmp_temp_x10 = bt; latest.pressure_pa = pressure; sensor_mask |= 4;
++  }
+ #endif
+-  return count;
+-}
+-
+-/* Read each sensor independently. Missing or failed sensors keep sentinel
+- * values. This function refreshes the local display data only; packet seq is
+- * incremented later, when an LWB packet is generated for transmission.
+- * env_packet_t contains only real environmental measurements (18 bytes).
+- */
+-static uint8_t
+-read_local_packet(env_packet_t *p)
+-{
+-  uint8_t sensor_mask;
+-  uint8_t valid_count;
+-  uint8_t temp_rh_err;
+-  uint8_t bmp_err;
+-  int16_t temp_x10;
+-  uint16_t hum_x10;
+-  int16_t bmp_temp_x10;
+-  int32_t pressure_pa;
+-  uint16_t light_raw;
+-
+-  sensor_mask = 0;
+-  valid_count = 0;
+-  temp_x10 = ENV_INVALID_TEMP_X10;
+-  hum_x10 = ENV_INVALID_U16;
+-  light_raw = ENV_INVALID_U16;
+-  bmp_temp_x10 = ENV_INVALID_TEMP_X10;
+-  pressure_pa = ENV_INVALID_PRESSURE_PA;
+-
+-#if !ENV_USE_TEMP_RH_CONF
+-  (void)temp_x10;
+-  (void)hum_x10;
++  (void)t; (void)bt; (void)rh; (void)light; (void)pressure;
++#if LWB_ENV_OLED_CONF
++  env_oled_show_env(&latest);
+ #endif
+-#if !ENV_USE_LIGHT_CONF
+-  (void)light_raw;
++  last_sample_s = clock_seconds();
++}
++
++static void packet_init(up_packet_t *p, uint8_t type, uint16_t seq)
++{
++  memset(p, 0, sizeof(*p));
++  p->magic = UP_MAGIC; p->version = UP_VERSION; p->type = type;
++  p->run = UP_RUN_ID; p->source = node_id; p->seq = seq;
++}
++
++/* This callback runs after a flood ends in rtimer context. No I/O or loops. */
++static void observe_tx(const uint8_t *data, uint8_t len, uint32_t ticks,
++                       uint8_t time_valid, uint8_t started)
++{
++  up_packet_t p;
++  uint16_t i;
++  uint8_t next;
++  if(measurement_closed || len != sizeof(p)) return;
++  memcpy(&p, data, sizeof(p));
++  if(p.magic != UP_MAGIC || p.version != UP_VERSION || p.type != UP_DATA ||
++     p.run != UP_RUN_ID || p.source != node_id || !p.seq || p.seq > UP_PACKETS) return;
++  i = p.seq - 1;
++  if(tx_seen[i >> 3] & (1u << (i & 7))) return;
++  tx_seen[i >> 3] |= (uint8_t)(1u << (i & 7));
++  if(started) tx_started++; else tx_start_failed++;
++  next = (uint8_t)((tx_write + 1) % TX_RING_SIZE);
++  if(next == tx_read) { tx_log_dropped++; return; }
++  tx_ring[tx_write].seq = p.seq;
++  tx_ring[tx_write].ticks = ticks;
++  tx_ring[tx_write].valid = time_valid;
++  tx_ring[tx_write].started = started;
++  __asm__ volatile("" ::: "memory");
++  tx_write = next;
++  process_poll(&lwb_cc2538dk_env_process);
++}
++
++static void print_tx_events(void)
++{
++  tx_event_t e;
++  while(tx_read != tx_write) {
++    e = tx_ring[tx_read];
++    __asm__ volatile("" ::: "memory");
++    tx_read = (uint8_t)((tx_read + 1) % TX_RING_SIZE);
++    printf("PERF_TX,run,%lu,source,%u,seq,%u,tx_start_ticks,%lu,time_valid,%u,started,%u\r\n",
++      (unsigned long)UP_RUN_ID, node_id, e.seq, (unsigned long)e.ticks, e.valid, e.started);
++  }
++}
++
++static void print_host_summary(uint16_t id)
++{
++  host_stats_t *h = &host[id];
++  up_stats_t *s = &h->stats;
++  uint32_t avg = s->delay_count ? (uint32_t)(s->delay_sum_ticks / s->delay_count) : 0;
++  printf("PERF_SUMMARY,run,%lu,source,%u,expected,%u,received,%u,duplicate,%u,out_of_order,%u,report_received,%u,final,%u,generated,%ld,queued,%ld,tx_started,%ld,queue_failed,%ld,deadline_missed,%ld,tx_start_failed,%ld,drain_timeout,%u,application_yield_x100,%ld,enqueue_delivery_x100,%ld,flood_delivery_x100,%ld,delay_count,%u,delay_min_us,%lu,delay_avg_us,%lu,delay_max_us,%lu,relay_samples,%u,relay_min,%u,relay_max,%u\r\n",
++    (unsigned long)UP_RUN_ID, id, UP_PACKETS, s->unique, s->duplicate, s->out_of_order,
++    h->report_received, h->report_received,
++    h->report_received ? (long)h->generated : -1L,
++    h->report_received ? (long)h->queued : -1L,
++    h->report_received ? (long)h->tx_started : -1L,
++    h->report_received ? (long)h->queue_failed : -1L,
++    h->report_received ? (long)h->deadline_missed : -1L,
++    h->report_received ? (long)h->tx_start_failed : -1L,
++    !!(h->report_flags & UP_REPORT_DRAIN_TIMEOUT),
++    h->report_received ? (long)up_ratio(s->unique, h->generated) : -1L,
++    h->report_received ? (long)up_ratio(s->unique, h->queued) : -1L,
++    h->report_received ? (long)up_ratio(s->unique, h->tx_started) : -1L,
++    s->delay_count, (unsigned long)ticks_to_us(s->delay_min_ticks),
++    (unsigned long)ticks_to_us(avg), (unsigned long)ticks_to_us(s->delay_max_ticks),
++    h->relay_samples, h->relay_min, h->relay_max);
++}
++
++static void on_data(uint8_t *data, uint8_t len, uint16_t from)
++{
++  up_packet_t p;
++  lwb_rx_metadata_t meta;
++  host_stats_t *h;
++  uint32_t delay_ticks;
++  uint8_t delay_valid, unique, relay_valid;
++  if(role != ROLE_HOST) return;
++  if(len != sizeof(p)) {
++    printf("PERF_ERR,reason,bad_length,from,%u,length,%u\r\n", from, len); return;
++  }
++  memcpy(&p, data, sizeof(p));
++  if(p.magic != UP_MAGIC || p.version != UP_VERSION || p.run != UP_RUN_ID ||
++     from != p.source || from > UP_MAX_NODE_ID || !expected_source[from]) {
++    printf("PERF_ERR,reason,bad_identity,from,%u,run,%lu\r\n", from, (unsigned long)p.run); return;
++  }
++  h = &host[from];
++  if(p.type == UP_REPORT) {
++    if(p.body.report.generated != UP_PACKETS || p.seq != UP_PACKETS ||
++       p.body.report.queued > p.body.report.generated ||
++       p.body.report.tx_started > p.body.report.queued ||
++       p.body.report.queued + p.body.report.queue_failed + p.body.report.deadline_missed != p.body.report.generated ||
++       p.body.report.tx_started + p.body.report.tx_start_failed > p.body.report.queued ||
++       p.body.report.tx_started < h->stats.unique) {
++      printf("PERF_ERR,reason,bad_report,source,%u\r\n", from); return;
++    }
++    h->report_received = 1; h->report_flags = p.flags;
++    h->generated = p.body.report.generated; h->queued = p.body.report.queued;
++    h->tx_started = p.body.report.tx_started; h->queue_failed = p.body.report.queue_failed;
++    h->deadline_missed = p.body.report.deadline_missed;
++    h->tx_start_failed = p.body.report.tx_start_failed;
++    printf("PERF_REPORT,run,%lu,source,%u,generated,%u,queued,%u,tx_started,%u,queue_failed,%u,deadline_missed,%u,tx_start_failed,%u,drain_timeout,%u\r\n",
++      (unsigned long)p.run, from, h->generated, h->queued, h->tx_started,
++      h->queue_failed, h->deadline_missed, h->tx_start_failed,
++      !!(p.flags & UP_REPORT_DRAIN_TIMEOUT));
++    print_host_summary(from); return;
++  }
++  if(p.type != UP_DATA || !p.seq || p.seq > UP_PACKETS) return;
++  memset(&meta, 0, sizeof(meta)); meta.relay_cnt = 0xff;
++  (void)lwb_get_last_rx_metadata(&meta);
++  delay_valid = up_delay(p.tx_network_ticks, meta.rx_slot_end_ticks,
++     !!(p.flags & UP_TIME_VALID), meta.time_valid, UP_MAX_DELAY_TICKS, &delay_ticks);
++  unique = up_stats_rx(&h->stats, h->seen, p.seq, UP_PACKETS, delay_valid, delay_ticks);
++  relay_valid = (meta.n_rx > 0 && meta.relay_cnt != 0xff);
++  if(unique == 1 && relay_valid) {
++    if(!h->relay_samples || meta.relay_cnt < h->relay_min) h->relay_min = meta.relay_cnt;
++    if(meta.relay_cnt > h->relay_max) h->relay_max = meta.relay_cnt;
++    h->relay_samples++; h->relay_sum += meta.relay_cnt;
++  }
++  printf("SENSOR_DATA,run,%lu,from,%u,node,%u,seq,%u,unique,%u,sensor_mask,%u,tx_net_ticks,%lu,rx_slot_end_ticks,%lu,delay_ticks,%lu,delay_ms,%lu,delay_valid,%u,timer_hz,%lu,relay_cnt,%u,hop_est,%u,hop_est_valid,%u,hdc_temp_x10,%d,hdc_hum_x10,%u,light_raw,%u,bmp_temp_x10,%d,pressure_pa,%ld\r\n",
++    (unsigned long)p.run, from, p.source, p.seq, unique == 1,
++    p.flags & UP_SENSOR_MASK, (unsigned long)p.tx_network_ticks,
++    (unsigned long)meta.rx_slot_end_ticks, (unsigned long)delay_ticks,
++    (unsigned long)((ticks_to_us(delay_ticks) + 500) / 1000), delay_valid,
++    (unsigned long)RTIMER_SECOND, meta.relay_cnt,
++    relay_valid ? (unsigned)meta.relay_cnt + 1u : 0u, relay_valid,
++    p.body.sensor.hdc_temp_x10, p.body.sensor.hdc_hum_x10,
++    p.body.sensor.light_raw, p.body.sensor.bmp_temp_x10, (long)p.body.sensor.pressure_pa);
++}
++
++static void on_sched_end(void)
++{
++  if(role != ROLE_SOURCE) return;
++  if(lwb_time_is_fresh()) { if(fresh_rounds < 255) fresh_rounds++; }
++  else fresh_rounds = 0;
++  if(lwb_get_n_my_slots()) last_slot_s = clock_seconds();
++}
++static lwb_callbacks_t callbacks = { on_data, on_sched_end };
++
++static void source_generate(void)
++{
++  up_packet_t p;
++  uint32_t now = clock_time();
++  uint32_t period = (uint32_t)UP_IPI * CLOCK_SECOND;
++  uint32_t missed = 0;
++  if((int32_t)(now - next_release) < 0) return;
++  missed = (uint32_t)(now - next_release) / period;
++  if(missed >= (uint32_t)(UP_PACKETS - generated)) missed = UP_PACKETS - generated - 1;
++  if(missed) {
++    printf("PERF_RELEASE_SKIP,run,%lu,source,%u,first_seq,%u,count,%lu\r\n",
++      (unsigned long)UP_RUN_ID, node_id, generated + 1, (unsigned long)missed);
++    generated += missed; deadline_missed += missed;
++  }
++  generated++;
++  packet_init(&p, UP_DATA, generated);
++  p.body.sensor.hdc_temp_x10 = latest.hdc_temp_x10;
++  p.body.sensor.hdc_hum_x10 = latest.hdc_hum_x10;
++  p.body.sensor.light_raw = latest.light_raw;
++  p.body.sensor.bmp_temp_x10 = latest.bmp_temp_x10;
++  p.body.sensor.pressure_pa = latest.pressure_pa;
++  p.flags = sensor_mask;
++  if(!sensor_mask) invalid_sensor++;
++  if(lwb_time_is_fresh()) p.flags |= UP_TIME_VALID; else unsynced_generated++;
++  p.tx_network_ticks = lwb_get_network_time_ticks();
++  if(lwb_queue_packet((uint8_t *)&p, sizeof(p), UP_HOST_ID) == LWB_STATUS_SUCCESS) queued++;
++  else queue_failed++;
++  printf("PERF_GEN,run,%lu,source,%u,seq,%u,generated,%u,queued,%u,queue_failed,%u,tx_net_ticks,%lu,time_valid,%u,sensor_mask,%u\r\n",
++    (unsigned long)UP_RUN_ID, node_id, generated, generated, queued, queue_failed,
++    (unsigned long)p.tx_network_ticks, !!(p.flags & UP_TIME_VALID), sensor_mask);
++  next_release += (missed + 1) * period;
++  if(generated == UP_PACKETS) { state = STATE_DRAIN; drain_started_s = clock_seconds(); }
++  else {
++    now = clock_time();
++    etimer_set(&send_et, (int32_t)(next_release - now) > 0 ? next_release - now : 1);
++  }
++}
++
++static void source_close(uint8_t timed_out)
++{
++  /* Called only during a guarded idle period, with no DATA flood in flight. */
++  if(timed_out) { discarded = lwb_drop_tx_queue(); report_flags |= UP_REPORT_DRAIN_TIMEOUT; }
++  measurement_closed = 1;
++  print_tx_events();
++  packet_init(&final_report, UP_REPORT, generated);
++  final_report.flags = report_flags;
++  final_report.body.report.generated = generated;
++  final_report.body.report.queued = queued;
++  final_report.body.report.tx_started = tx_started;
++  final_report.body.report.queue_failed = queue_failed;
++  final_report.body.report.deadline_missed = deadline_missed;
++  final_report.body.report.tx_start_failed = tx_start_failed;
++  printf("PERF_SOURCE_SUMMARY,run,%lu,source,%u,expected,%u,generated,%u,queued,%u,tx_started,%u,queue_failed,%u,deadline_missed,%u,tx_start_failed,%u,discarded,%u,invalid_sensor,%u,unsynced_generated,%u,tx_log_dropped,%u,drain_timeout,%u\r\n",
++    (unsigned long)UP_RUN_ID, node_id, UP_PACKETS, generated, queued, tx_started,
++    queue_failed, deadline_missed, tx_start_failed, discarded, invalid_sensor,
++    unsynced_generated, tx_log_dropped, !!(report_flags & UP_REPORT_DRAIN_TIMEOUT));
++  state = STATE_CLOSED; reports_left = UP_REPORT_REPEAT;
++  next_report_s = clock_seconds();
++}
++
++PROCESS_THREAD(lwb_cc2538dk_env_process, ev, data)
++{
++  static uint32_t now_s, waited, rejoin_threshold;
++  static uint16_t id;
++  PROCESS_BEGIN();
++  deployment_load_ieee_addr();
++  deployment_set_node_id_ieee_addr();
++  role = UP_ROLE == ROLE_AUTO ? (node_id == UP_HOST_ID ? ROLE_HOST : ROLE_SOURCE) : UP_ROLE;
++  if(!node_id || node_id > UP_MAX_NODE_ID || !parse_sources() ||
++     (role == ROLE_HOST && node_id != UP_HOST_ID) ||
++     (role != ROLE_HOST && node_id == UP_HOST_ID) ||
++     (role == ROLE_SOURCE && !expected_source[node_id]) ||
++     (role == ROLE_RELAY && expected_source[node_id])) {
++    printf("PERF_ERR,reason,invalid_build_configuration,node,%u\r\n", node_id);
++    PROCESS_EXIT();
++  }
++  lpm_set_max_pm(LPM_PM0);
++  sensor_enabled = role == ROLE_SOURCE || (role == ROLE_HOST && LWB_ENV_HOST_LOCAL_SENSOR_CONF);
++  clear_sensor();
++  if(sensor_enabled) {
++    env_sensors_init();
++#if LWB_ENV_OLED_CONF
++    env_oled_init(); env_oled_show_status(node_id, role == ROLE_HOST);
+ #endif
+-#if !ENV_USE_BMP180_CONF
+-  (void)bmp_temp_x10;
+-  (void)pressure_pa;
+-#endif
+-
+-  p->node_id = node_id;
+-  p->hdc_temp_x10 = ENV_INVALID_TEMP_X10;
+-  p->hdc_hum_x10 = ENV_INVALID_U16;
+-  p->light_raw = ENV_INVALID_U16;
+-  p->bmp_temp_x10 = ENV_INVALID_TEMP_X10;
+-  p->pressure_pa = ENV_INVALID_PRESSURE_PA;
+-
+-#if ENV_USE_TEMP_RH_CONF
+-  temp_rh_err = env_read_temp_rh(&temp_x10, &hum_x10);
+-  if(temp_rh_err == 0) {
+-    p->hdc_temp_x10 = temp_x10;
+-    p->hdc_hum_x10 = hum_x10;
+-    sensor_mask |= SENSOR_MASK_TEMP_RH;
+-    valid_count++;
+-  }
+-#else
+-  temp_rh_err = 0;
+-  (void)temp_rh_err;
+-#endif
+-
+-#if ENV_USE_LIGHT_CONF
+-  light_raw = env_read_light_raw();
+-  p->light_raw = light_raw;
+-  if(light_raw != ENV_INVALID_U16) {
+-    sensor_mask |= SENSOR_MASK_LIGHT;
+-    valid_count++;
+-  }
+-#endif
+-
+-#if ENV_USE_BMP180_CONF
+-  bmp_err = env_read_bmp180(&bmp_temp_x10, &pressure_pa);
+-  if(bmp_err == 0) {
+-    p->bmp_temp_x10 = bmp_temp_x10;
+-    p->pressure_pa = pressure_pa;
+-    sensor_mask |= SENSOR_MASK_BMP180;
+-    valid_count++;
+-  }
+-#else
+-  bmp_err = 0;
+-  (void)bmp_err;
+-#endif
+-
+-  /* Avoid printing every second. Report only when sensor availability changes. */
+-  if(sensor_mask != last_reported_sensor_mask) {
+-    printf("SENSOR_STATUS,node,%u,valid,%u/%u,mask,0x%02x,temp_rh,%s\r\n",
+-           node_id,
+-           valid_count,
+-           enabled_sensor_count(),
+-           sensor_mask,
+-           env_temp_rh_sensor_name());
+-    last_reported_sensor_mask = sensor_mask;
+-  }
+-
+-  return sensor_mask;
+-}
+-
+-static void
+-on_data(uint8_t *data, uint8_t data_len, uint16_t from_id)
+-{
+-  env_packet_t *p;
+-
+-  printf("RX_CALLBACK,from,%u,len,%u,expect,%u\r\n",
+-         from_id,
+-         data_len,
+-         (unsigned)sizeof(env_packet_t));
+-
+-  if(data_len != sizeof(env_packet_t)) {
+-    printf("ERR,bad_len,%u,from,%u\r\n", data_len, from_id);
+-    return;
+-  }
+-
+-  p = (env_packet_t *)data;
+-  print_env_csv("SENSOR_DATA",
+-              (unsigned long)clock_seconds(),
+-              from_id,
+-              p);
+-  print_env_human("DATA", (unsigned long)clock_seconds(), from_id, p);
+-}
+-
+-static lwb_callbacks_t callbacks = { on_data, on_sched_end };
+-
+-PROCESS_THREAD(lwb_cc2538dk_env_process, ev, data)
+-{
+-  PROCESS_BEGIN();
+-
+-  deployment_load_ieee_addr();
+-
+-  if(!deployment_set_node_id_ieee_addr()) {
+-    printf("WARN,node_id_not_matched_ieee; use NODEID=<id> or edit deployment.c\r\n");
+-  }
+-
+-  deployment_print_id_info();
+-  lpm_set_max_pm(LPM_PM0);
+-
+-  if(node_id == 0) {
+-    printf("ERR,node_id_is_zero; stop\r\n");
+-    PROCESS_EXIT();
+-  }
+-
+-  env_sensors_init();
+-
+-#if LWB_ENV_OLED_CONF
+-  env_oled_init();
+-  env_oled_show_status(node_id, node_id == LWB_HOST_ID);
+-#endif
+-
+-  if(node_id == LWB_HOST_ID) {
+-    printf("MODE,LWB_HOST\r\n");
+-    lwb_init(LWB_MODE_HOST, &callbacks);
+-  } else {
+-    printf("MODE,LWB_SOURCE,stream_ipi,%u,sample_period,%u\r\n",
+-           STREAM_IPI_CONF,
+-           SENSOR_SAMPLE_PERIOD_CONF);
+-    lwb_init(LWB_MODE_SOURCE, &callbacks);
+-    lwb_request_stream_mod(STREAM_ID, STREAM_IPI_CONF);
+-  }
+-
+-#if LWB_ENABLE_AES_CONF
+-  glossy_set_enc_key(aes_key, GLOSSY_AES_128_KEY_SIZE);
+-  glossy_set_enc(GLOSSY_ENC_ON);
+-#else
+-  (void)aes_key;
++    sample_sensor();
++  }
++  printf("PERF_CONFIG,protocol,env_perf_v1,node,%u,role,%s,run,%lu,expected,%u,ipi_s,%u,source_ids,%s,payload_bytes,%u,timer_hz,%lu,channel,%u,tx_drive_dbm,%d,n_sync,%u,n_data_tx,%u,application_ack,0,application_retry,0,rtc_integrated,0,delay_endpoint,slot_end,scheduler,static_5s\r\n",
++    node_id, role_name(), (unsigned long)UP_RUN_ID, UP_PACKETS, UP_IPI,
++    UP_SOURCE_IDS, (unsigned)sizeof(up_packet_t), (unsigned long)RTIMER_SECOND,
++    CC2538_RF_CONF_CHANNEL, CC2592_CONF_TX_POWER_DBM, N_SYNC, N_RR);
++  lwb_init(role == ROLE_HOST ? LWB_MODE_HOST : LWB_MODE_SOURCE, &callbacks);
+   glossy_set_enc(GLOSSY_ENC_OFF);
+-#endif
+-
+-  /* Local sensor/OLED refresh and LWB transmission run independently. */
+-  etimer_set(&sample_et, CLOCK_SECOND * SENSOR_SAMPLE_PERIOD_CONF);
+-  etimer_set(&transmit_et, CLOCK_SECOND * STREAM_IPI_CONF);
+-
++  if(role == ROLE_SOURCE) {
++    lwb_set_tx_observer(observe_tx);
++    lwb_request_stream_mod(STREAM_ID, UP_IPI);
++  }
++  last_slot_s = clock_seconds();
++  etimer_set(&maintenance_et, CLOCK_SECOND);
+   while(1) {
+     PROCESS_WAIT_EVENT();
+-
+-    /* Handle a lost stream registration in the application process. */
+-    if(rejoin_request_pending) {
+-      rejoin_request_pending = 0;
+-      if(node_id != LWB_HOST_ID &&
+-         lwb_get_joining_state() == LWB_JOINING_STATE_JOINED &&
+-         lwb_get_n_my_slots() == 0) {
+-        /* MOD recreates a missing stream in this project's Host scheduler. */
+-        lwb_request_stream_mod(STREAM_ID, STREAM_IPI_CONF);
+-        printf("REJOIN_REQUEST,node,%u,reason,no_allocated_slots\r\n", node_id);
++    if(role == ROLE_SOURCE) print_tx_events();
++    if(role == ROLE_SOURCE && state == STATE_SEND &&
++       ev == PROCESS_EVENT_TIMER && data == &send_et) source_generate();
++    if(ev != PROCESS_EVENT_TIMER || data != &maintenance_et) continue;
++    etimer_reset(&maintenance_et); now_s = clock_seconds();
++    if(sensor_enabled && now_s - last_sample_s >= UP_SAMPLE_PERIOD &&
++       lwb_background_allowed(BG_BUDGET_MS)) {
++      sample_sensor();
++      if(role == ROLE_HOST) {
++        printf("LOCAL,run,%lu,node,%u,seq,%lu,sensor_mask,%u,hdc_temp_x10,%d,hdc_hum_x10,%u,light_raw,%u,bmp_temp_x10,%d,pressure_pa,%ld\r\n",
++          (unsigned long)UP_RUN_ID, node_id, (unsigned long)now_s, sensor_mask,
++          latest.hdc_temp_x10, latest.hdc_hum_x10, latest.light_raw,
++          latest.bmp_temp_x10, (long)latest.pressure_pa);
+       }
+     }
+-
+-    if(ev == PROCESS_EVENT_TIMER && data == &sample_et) {
+-      latest_sensor_mask = read_local_packet(&env_pkt);
+-
+-#if LWB_ENV_OLED_CONF
+-      env_oled_show_env(&env_pkt);
+-#endif
+-
+-      etimer_reset(&sample_et);
+-    }
+-
+-    if(ev == PROCESS_EVENT_TIMER && data == &transmit_et) {
+-      /* seq identifies generated LWB packets, not OLED refreshes. */
+-      env_pkt.node_id = node_id;
+-      env_pkt.seq++;
+-
+-      if(node_id == LWB_HOST_ID) {
+-#if LWB_ENV_HOST_LOCAL_SENSOR_CONF
+-        if(latest_sensor_mask != 0) {
+-          
+-print_env_csv("LOCAL", (unsigned long)clock_seconds(), node_id, &env_pkt);
+-          print_env_human("LOCAL", (unsigned long)clock_seconds(), node_id, &env_pkt);
+-        } else {
+-          printf("LOCAL_NO_VALID_SENSOR,node,%u,seq,%lu\r\n",
+-                 env_pkt.node_id,
+-                 (unsigned long)env_pkt.seq);
+-        }
+-#endif
+-      } else {
+-        if(latest_sensor_mask != 0) {
+-          if(lwb_queue_packet((uint8_t *)&env_pkt,
+-                              sizeof(env_pkt),
+-                              LWB_HOST_ID) == LWB_STATUS_SUCCESS) {
+-            print_env_csv("QUEUED", (unsigned long)clock_seconds(), node_id, &env_pkt);
+-            print_env_human("QUEUED", (unsigned long)clock_seconds(), node_id, &env_pkt);
+-          } else {
+-            printf("QUEUE_FAIL,%u,%lu\r\n",
+-                   env_pkt.node_id,
+-                   (unsigned long)env_pkt.seq);
+-          }
+-        } else {
+-          printf("SKIP_QUEUE_NO_VALID_SENSOR,node,%u,seq,%lu\r\n",
+-                 env_pkt.node_id,
+-                 (unsigned long)env_pkt.seq);
+-        }
++    if(role == ROLE_HOST && now_s - last_summary_s >= UP_SUMMARY_PERIOD) {
++      last_summary_s = now_s;
++      for(id = 1; id <= UP_MAX_NODE_ID; id++) if(expected_source[id]) print_host_summary(id);
++    }
++    if(role != ROLE_SOURCE) continue;
++    if(state == STATE_JOIN) {
++      if(now_s >= UP_START_DELAY && fresh_rounds >= 2 &&
++         lwb_get_joining_state() == LWB_JOINING_STATE_JOINED && lwb_get_n_my_slots()) {
++        printf("PERF_START,run,%lu,source,%u,uptime_s,%lu\r\n",
++          (unsigned long)UP_RUN_ID, node_id, (unsigned long)now_s);
++        state = STATE_SEND; next_release = clock_time(); source_generate();
++      } else if(now_s >= UP_JOIN_TIMEOUT) {
++        state = STATE_ABORT;
++        printf("PERF_ABORT,run,%lu,source,%u,reason,join_timeout,generated,0\r\n",
++          (unsigned long)UP_RUN_ID, node_id);
+       }
+-
+-      etimer_reset(&transmit_et);
+-    }
+-  }
+-
++    }
++    rejoin_threshold = UP_IPI * 3UL; if(rejoin_threshold < 30) rejoin_threshold = 30;
++    if((state == STATE_JOIN || state == STATE_SEND || state == STATE_DRAIN) &&
++       now_s - last_slot_s >= rejoin_threshold &&
++       lwb_get_joining_state() == LWB_JOINING_STATE_JOINED &&
++       lwb_time_is_fresh() && lwb_get_n_my_slots() == 0) {
++      last_slot_s = now_s; lwb_request_stream_mod(STREAM_ID, UP_IPI);
++      printf("REJOIN_REQUEST,run,%lu,source,%u,reason,no_allocated_slots\r\n",
++        (unsigned long)UP_RUN_ID, node_id);
++    }
++    if(state == STATE_DRAIN && lwb_background_allowed(30)) {
++      waited = now_s - drain_started_s;
++      if(waited >= UP_REPORT_WAIT && lwb_get_tx_queue_len() == 0) source_close(0);
++      else if(waited >= UP_DRAIN_TIMEOUT) source_close(1);
++    }
++    if(state == STATE_CLOSED && reports_left && now_s >= next_report_s &&
++       lwb_background_allowed(30)) {
++      report_attempts++; next_report_s = now_s + UP_IPI;
++      if(lwb_queue_packet((uint8_t *)&final_report, sizeof(final_report), UP_HOST_ID) == LWB_STATUS_SUCCESS) reports_left--;
++      if(!reports_left || report_attempts >= UP_REPORT_REPEAT * 4 + 4) {
++        reports_left = 0;
++        printf("PERF_REPORT_END,run,%lu,source,%u,attempts,%u\r\n",
++          (unsigned long)UP_RUN_ID, node_id, report_attempts);
++      }
++    }
++  }
+   PROCESS_END();
+ }
+--- a/apps/lwb-cc2538dk-env/project-conf.h
++++ b/apps/lwb-cc2538dk-env/project-conf.h
+@@ -9,14 +9,18 @@
+ #define SYS_CTRL_CONF_IO_DIV          SYS_CTRL_CLOCK_CTRL_IO_DIV_32MHZ
+ 
+ /* RF channel for Glossy/LWB */
++#ifndef CC2538_RF_CONF_CHANNEL
+ #define CC2538_RF_CONF_CHANNEL        26
++#endif
+ 
+ /* CC2592 external RF front-end
+  * Reference mapping: PC3=PA_EN, PC2=LNA_EN, PD2=HGM.
+  */
+ #define CC2592_CONF_ENABLE            1
+ #define CC2592_CONF_HIGH_GAIN         1
++#ifndef CC2592_CONF_TX_POWER_DBM
+ #define CC2592_CONF_TX_POWER_DBM      7
++#endif
+ #define CC2538_RF_CONF_TX_POWER       0xFF
+ 
+ /* Default software I2C pins: SCL=PB3, SDA=PB4. */
+@@ -55,7 +59,9 @@
+ #endif
+ 
+ /* Queue configuration */
+-#define LWB_CONF_MAX_DATA_BUF_ELEMENTS 8
++#ifndef LWB_CONF_MAX_DATA_BUF_ELEMENTS
++#define LWB_CONF_MAX_DATA_BUF_ELEMENTS 16
++#endif
+ 
+ /* Disable Coffee FS */
+ #define COFFEE_CONF_SIZE             0
+--- /dev/null
++++ b/apps/lwb-cc2538dk-env/unified-conf.h
+@@ -0,0 +1,55 @@
++#ifndef UNIFIED_CONF_H_
++#define UNIFIED_CONF_H_
++#define ROLE_AUTO 0
++#define ROLE_HOST 1
++#define ROLE_SOURCE 2
++#define ROLE_RELAY 3
++#if UP_ROLE < 0 || UP_ROLE > 3
++#error "ROLE must be 0, 1, 2 or 3"
++#endif
++#if UP_PACKETS < 1 || UP_PACKETS > 2000
++#error "PACKETS must be between 1 and 2000"
++#endif
++/* Uploaded port has a static 5-second scheduler. */
++#if UP_IPI < 5 || (UP_IPI % 5) != 0
++#error "This static scheduler profile requires IPI >=5 and a multiple of 5"
++#endif
++#if UP_SAMPLE_PERIOD < 1 || UP_MAX_NODE_ID < 2 || UP_MAX_NODE_ID > 32
++#error "Invalid sample period or MAX_NODE_ID"
++#endif
++#if UP_START_DELAY < 1 || UP_JOIN_TIMEOUT <= UP_START_DELAY
++#error "JOIN_TIMEOUT must be greater than START_DELAY >=1"
++#endif
++#if UP_DRAIN_TIMEOUT < UP_REPORT_WAIT || UP_REPORT_WAIT < 1
++#error "DRAIN_TIMEOUT must be >= REPORT_WAIT >=1"
++#endif
++#if UP_REPORT_REPEAT < 0 || UP_REPORT_REPEAT > 10 || UP_SUMMARY_PERIOD < 1
++#error "REPORT_REPEAT must be 0..10 and SUMMARY_PERIOD >=1"
++#endif
++#if UP_MAX_DELAY_S < 1 || UP_MAX_DELAY_S > 3600 || UP_IPI > 3600
++#error "MAX_DELAY_S must be 1..3600 and IPI <=3600"
++#endif
++#if UP_RUN_ID < 1 || UP_RUN_ID > 4294967295ULL
++#error "RUN_ID must be 1..4294967295"
++#endif
++#if CC2538_RF_CONF_CHANNEL < 11 || CC2538_RF_CONF_CHANNEL > 26
++#error "CHANNEL must be between 11 and 26"
++#endif
++#if N_SYNC < 1 || N_SYNC > 8 || N_RR < 1 || N_RR > 8
++#error "This Glossy port supports N_SYNC/N_DATA_TX between 1 and 8"
++#endif
++#if LWB_MAX_DATA_BUF_ELEMENTS < 1 || LWB_MAX_DATA_BUF_ELEMENTS > 64
++#error "DATA_BUFFERS must be 1..64; verify link map RAM usage"
++#endif
++#if CC2592_CONF_TX_POWER_DBM != 7 && CC2592_CONF_TX_POWER_DBM != 5 && \
++    CC2592_CONF_TX_POWER_DBM != 3 && CC2592_CONF_TX_POWER_DBM != 1 && \
++    CC2592_CONF_TX_POWER_DBM != 0 && CC2592_CONF_TX_POWER_DBM != -1 && \
++    CC2592_CONF_TX_POWER_DBM != -3 && CC2592_CONF_TX_POWER_DBM != -5 && \
++    CC2592_CONF_TX_POWER_DBM != -7 && CC2592_CONF_TX_POWER_DBM != -9 && \
++    CC2592_CONF_TX_POWER_DBM != -11 && CC2592_CONF_TX_POWER_DBM != -13 && \
++    CC2592_CONF_TX_POWER_DBM != -15 && CC2592_CONF_TX_POWER_DBM != -24
++#error "TX_POWER_DBM must be an exact drive level from the CC2538 table"
++#endif
++#define UP_BITMAP_BYTES ((UP_PACKETS + 7) / 8)
++#define UP_MAX_DELAY_TICKS ((uint32_t)UP_MAX_DELAY_S * (uint32_t)RTIMER_SECOND)
++#endif
+--- a/net/glossy/glossy.c
++++ b/net/glossy/glossy.c
+@@ -288,6 +288,7 @@
+   uint8_t         id_header;       /**< Identification header */
+   glossy_header_t crr_header;      /**< Current Glossy header */
+ 
++  uint8_t         relay_cnt_first_rx; /**< First valid RX, also without sync. */
+   uint8_t         relay_cnt_last_rx;  /**< Last received relay count. */
+   uint8_t         relay_cnt_last_tx;  /**< Last sent relay count. */
+ 
+@@ -793,6 +794,8 @@
+   if (g_cntxt.rx_cnt == 0) {
+     /* First successful reception. */
+     g_cntxt.t_first_rx = g_cntxt.t_rx_start;
++    g_cntxt.relay_cnt_first_rx = WITH_RELAY_CNT(rcvd_header->config) ?
++                                  rcvd_header->relay_cnt : 0xff;
+     /* Copy the received header to current header */
+     memcpy(&g_cntxt.crr_header, rcvd_header, GET_GLOSSY_HEADER_LEN(rcvd_header->config));
+   }
+@@ -1378,6 +1381,7 @@
+   g_cntxt.rx_payload_cnt = 0;
+ #endif
+ 
++  g_cntxt.relay_cnt_first_rx = 0xff;
+   g_cntxt.relay_cnt_last_rx = 0;
+   g_cntxt.relay_cnt_last_tx = 0;
+ 
+@@ -1582,6 +1586,11 @@
+   return g_cntxt.rx_cnt;
+ }
+ 
++uint8_t glossy_get_n_tx(void)
++{
++  return g_cntxt.tx_cnt;
++}
++
+ /* ---------------------------------------------------------------------------------------------- */
+ uint8_t glossy_get_payload_len(void)
+ {
+@@ -1600,7 +1609,7 @@
+ /* ---------------------------------------------------------------------------------------------- */
+ uint8_t glossy_get_relay_cnt_first_rx(void)
+ {
+-  return g_cntxt.relay_cnt_t_ref;
++  return g_cntxt.relay_cnt_first_rx;
+ }
+ 
+ /* ---------------------------------------------------------------------------------------------- */
+--- a/net/glossy/glossy.h
++++ b/net/glossy/glossy.h
+@@ -215,9 +215,14 @@
+ 
+ /**
+  * @brief Get relay count of the first reception
+- * @return the relay count of the first reception in the last flood.
++ * @return Raw relay counter in first valid RX, including DATA floods;
++ *         0xff if no valid RX/counter. This is a flood-propagation indicator,
++ *         not proof of a fixed route or shortest-path hop distance.
+  */
+ uint8_t glossy_get_relay_cnt_first_rx(void);
++
++/* Number of local completed radio transmissions in the latest flood. */
++uint8_t glossy_get_n_tx(void);
+ 
+ /**
+  * @brief Get maximum length of payload
+--- a/net/lwb/lwb-common.h
++++ b/net/lwb/lwb-common.h
+@@ -174,6 +174,20 @@
+ 
+ } lwb_stream_info_t;
+ 
++/* Local observations: these fields are never transmitted over the air. */
++typedef struct {
++  uint32_t rx_slot_end_ticks;
++  uint8_t time_valid;
++  uint8_t relay_cnt;
++  uint8_t n_rx;
++  uint8_t slot_index;
++} lwb_rx_metadata_t;
++
++/* Called AFTER a TX flood ends, in rtimer context. Only bounded RAM work is
++ * permitted: no printf, I2C, allocation, queue operations or blocking calls. */
++typedef void (*lwb_tx_observer_t)(const uint8_t *, uint8_t,
++                                uint32_t, uint8_t, uint8_t);
++
+ /// @brief LWB callbacks
+ typedef struct lwb_callbacks {
+   void (*p_on_data)(uint8_t*, uint8_t, uint16_t);
+@@ -230,6 +244,11 @@
+ 
+   /* Fine-grained synchronized network time used by delay measurements. */
+   uint32_t         network_time_offset_ticks;          /**< network_ticks = local RTIMER ticks + this offset (modulo 2^32) */
++  uint8_t          round_active;
++  rtimer_clock_t   next_round_ticks;
++  uint32_t        tx_observed_start;
++  uint8_t         tx_observed_time_valid;
++  uint8_t         tx_observed_started;
+   uint8_t          network_time_valid;                 /**< Non-zero only while the synchronized timebase is trustworthy */
+ 
+   rtimer_clock_t   t_start;                           /**< Start time of the first schedule transmission in a round in rtimer ticks */
+@@ -286,8 +305,9 @@
+ 
+ /// @brief Structure for data buffer element.
+ typedef struct data_buf_lst_item {
+-  struct data_buf* next;
++  struct data_buf_lst_item* next;
+   uint16_t from_id;
++  lwb_rx_metadata_t rx_metadata;
+   data_buf_t        buf;
+ } data_buf_lst_item_t;
+ 
+--- a/net/lwb/lwb-g-rr.c
++++ b/net/lwb/lwb-g-rr.c
+@@ -87,6 +87,30 @@
+ static uint8_t n_trials;
+ 
+ static uint8_t stream_id_next;
++static lwb_tx_observer_t tx_observer;
++static lwb_rx_metadata_t callback_rx_metadata;
++static uint8_t inside_rx_callback;
++
++uint8_t lwb_get_last_rx_metadata(lwb_rx_metadata_t *out)
++{
++  if(!out || !inside_rx_callback) return 0;
++  *out = callback_rx_metadata;
++  return 1;
++}
++
++uint8_t lwb_get_tx_queue_len(void) { return tx_buf_q_size; }
++void lwb_set_tx_observer(lwb_tx_observer_t observer) { tx_observer = observer; }
++
++static void notify_tx_observer(void)
++{
++  data_header_t hdr;
++  if(!tx_observer) return;
++  memcpy(&hdr, LWB_PKT_DATA_PTR(), sizeof(hdr));
++  tx_observer(LWB_PKT_APP_DATA_PTR(), hdr.data_len,
++              lwb_context.tx_observed_start,
++              lwb_context.tx_observed_time_valid,
++              lwb_context.tx_observed_started && glossy_get_n_tx() > 0);
++}
+ 
+ 
+ /*------------------------------------------------------------------------------------------------*/
+@@ -104,6 +128,8 @@
+   n_rounds_to_wait = 0;
+   n_trials = 0;
+   stream_id_next = 1;
++  tx_observer = NULL;
++  inside_rx_callback = 0;
+ 
+ }
+ 
+@@ -247,51 +273,47 @@
+ /*------------------------------------------------------------------------------------------------*/
+ static void process_data_packet(uint8_t slot_idx)
+ {
+-  if (GET_LWB_PKT_TYPE() != LWB_PKT_TYPE_DATA) {
+-    return;
+-  }
+-
+-  if (lwb_context.txrx_buf_len < sizeof(lwb_pkt_header_t) + sizeof(data_header_t)) {
+-    return;
+-  }
+-
++  data_header_t hdr;
++  data_buf_lst_item_t *item;
++  uint16_t end;
++  uint32_t rx_ticks = lwb_get_network_time_ticks();
++  uint8_t time_valid = lwb_time_is_fresh();
++  if(GET_LWB_PKT_TYPE() != LWB_PKT_TYPE_DATA ||
++     lwb_context.txrx_buf_len < sizeof(lwb_pkt_header_t) + sizeof(hdr)) return;
++  memcpy(&hdr, LWB_PKT_DATA_PTR(), sizeof(hdr));
++  end = sizeof(lwb_pkt_header_t) + sizeof(hdr) + hdr.data_len;
++  if(hdr.data_len > LWB_PKT_APP_DATA_LEN_MAX() ||
++     end > lwb_context.txrx_buf_len) return;
+   lwb_sched_update_data_slot_usage(slot_idx, 1);
+ 
+-  data_header_t data_hdr;
+-  memcpy(&data_hdr, LWB_PKT_DATA_PTR(), sizeof(data_header_t));
+-  if (data_hdr.to_id != node_id && data_hdr.to_id != 0) {
+-    // We drop this packet
++  /* Host processes valid piggybacks even when it is not an app recipient. */
++  if(lwb_context.lwb_mode == LWB_MODE_HOST &&
++     LWB_PKT_APP_DATA_HDR_OPT_GET_PKT_TYPE(&hdr) == LWB_PKT_TYPE_STREAM_REQ &&
++     end + sizeof(lwb_stream_req_header_t) <= lwb_context.txrx_buf_len) {
++    lwb_stream_req_header_t *req = (lwb_stream_req_header_t *)
++        (lwb_context.txrx_buf + end);
++    if(end + sizeof(*req) + (uint16_t)req->n_reqs * sizeof(lwb_stream_req_t)
++         <= lwb_context.txrx_buf_len) iterate_stream_reqs(req);
++  }
++  /* Address filtering is after the Glossy flood; it does not disable relay. */
++  if(hdr.to_id != node_id && hdr.to_id != 0) {
+     LWB_STATS_DATA(n_rx_dropped)++;
+     return;
+   }
+-
+-  data_buf_lst_item_t* buf_item = memb_alloc(&mmb_data_buf);
+-  if (!buf_item) {
+-    LWB_STATS_DATA(n_rx_nospace)++;
+-    return;
+-  }
+-
+-  buf_item->from_id = glossy_get_initiator_id();
+-  /* Copy the data including the header into the buffer and add to the queue */
+-  memcpy(&(buf_item->buf), LWB_PKT_DATA_PTR(), sizeof(data_header_t) + data_hdr.data_len);
+-  list_add(lst_rx_buf_queue, buf_item);
++  item = memb_alloc(&mmb_data_buf);
++  if(!item) { LWB_STATS_DATA(n_rx_nospace)++; return; }
++  item->from_id = glossy_get_initiator_id();
++  item->rx_metadata.rx_slot_end_ticks = rx_ticks;
++  item->rx_metadata.time_valid = time_valid;
++  item->rx_metadata.relay_cnt = glossy_get_relay_cnt_first_rx();
++  item->rx_metadata.n_rx = glossy_get_n_rx();
++  item->rx_metadata.slot_index = slot_idx;
++  memcpy(&item->buf, LWB_PKT_DATA_PTR(), sizeof(hdr) + hdr.data_len);
++  list_add(lst_rx_buf_queue, item);
+   rx_buf_q_size++;
+-
+   LWB_STATS_DATA(n_rx)++;
+-
+-  /* Poll the LWB main process to deliver data to APP layer */
+   LWB_SET_POLL_FLAG(LWB_POLL_FLAGS_DATA);
+   process_poll(&lwb_main_process);
+-
+-  /* Only the host processes piggybacked stream requests */
+-  if (lwb_context.lwb_mode == LWB_MODE_HOST
+-      && LWB_PKT_APP_DATA_HDR_OPT_GET_PKT_TYPE(&data_hdr) == LWB_PKT_TYPE_STREAM_REQ) {
+-
+-    lwb_stream_req_header_t* str_req_hdr = (lwb_stream_req_header_t*)(LWB_PKT_APP_DATA_PTR()
+-                                                                      + data_hdr.data_len);
+-    iterate_stream_reqs(str_req_hdr);
+-  }
+-
+ }
+ 
+ /*------------------------------------------------------------------------------------------------*/
+@@ -393,14 +415,19 @@
+ 
+       if (tx_buf_q_size > 0) {
+         prepare_data_packet();
+-        glossy_start(node_id, lwb_context.txrx_buf, lwb_context.txrx_buf_len, N_RR,
+-                     GLOSSY_ONLY_RELAY_CNT);
++        lwb_context.tx_observed_time_valid = lwb_time_is_fresh();
++        lwb_context.tx_observed_start = lwb_get_network_time_ticks();
++        lwb_context.tx_observed_started =
++          (glossy_start(node_id, lwb_context.txrx_buf,
++                        lwb_context.txrx_buf_len, N_RR,
++                        GLOSSY_ONLY_RELAY_CNT) == GLOSSY_STATUS_SUCCESS);
+         LWB_WAIT_UNTIL(lwb_context.t_sync_ref
+                        + T_SYNC_ON
+                        + T_S_R_GAP
+                        + (idx_start + slot_idx) * (T_RR_ON + T_GAP)
+                        + T_RR_ON);
+         glossy_stop();
++        notify_tx_observer();
+       } else {
+         /* We have nothing to send. Stay silent */
+       }
+@@ -513,14 +540,19 @@
+ 
+       if (tx_buf_q_size > 0) {
+         prepare_data_packet();
+-        glossy_start(node_id, lwb_context.txrx_buf, lwb_context.txrx_buf_len, N_RR,
+-                     GLOSSY_ONLY_RELAY_CNT);
++        lwb_context.tx_observed_time_valid = lwb_time_is_fresh();
++        lwb_context.tx_observed_start = lwb_get_network_time_ticks();
++        lwb_context.tx_observed_started =
++          (glossy_start(node_id, lwb_context.txrx_buf,
++                        lwb_context.txrx_buf_len, N_RR,
++                        GLOSSY_ONLY_RELAY_CNT) == GLOSSY_STATUS_SUCCESS);
+         LWB_WAIT_UNTIL(lwb_context.t_sync_ref
+                        + T_SYNC_ON
+                        + T_S_R_GAP
+                        + (idx_start + slot_idx) * (T_RR_ON + T_GAP)
+                        + T_RR_ON);
+         glossy_stop();
++        notify_tx_observer();
+       } else {
+         /* We have nothing to send. Stay silent */
+       }
+@@ -716,8 +748,11 @@
+   data_buf_lst_item_t* item = NULL;
+   while ((item = list_head(lst_rx_buf_queue))) {
+     if (lwb_context.p_callbacks && lwb_context.p_callbacks->p_on_data) {
++      callback_rx_metadata = item->rx_metadata;
++      inside_rx_callback = 1;
+       lwb_context.p_callbacks->p_on_data(item->buf.data, item->buf.header.data_len,
+                                          item->from_id);
++      inside_rx_callback = 0;
+     }
+ 
+     list_remove(lst_rx_buf_queue, item);
+@@ -725,3 +760,16 @@
+     rx_buf_q_size--;
+   }
+ }
++
++uint8_t lwb_drop_tx_queue(void)
++{
++  data_buf_lst_item_t *item;
++  uint8_t dropped = 0;
++  if(!lwb_background_allowed(30)) return 0;
++  while((item = list_head(lst_tx_buf_queue))) {
++    list_remove(lst_tx_buf_queue, item);
++    memb_free(&mmb_data_buf, item);
++    tx_buf_q_size--; dropped++;
++  }
++  return dropped;
++}
+--- a/net/lwb/lwb-g-rr.h
++++ b/net/lwb/lwb-g-rr.h
+@@ -50,7 +50,8 @@
+ 
+ void lwb_g_rr_data_output();
+ 
+-lwb_status_t lwb_g_rr_stream_add(uint16_t ipi, uint16_t time_offset);
++/* Returns the allocated stream ID, or zero on failure. */
++uint8_t lwb_g_rr_stream_add(uint16_t ipi, uint16_t time_offset);
+ 
+ void lwb_g_rr_stream_del(uint8_t id);
+ 
+--- a/net/lwb/lwb-g-sync.c
++++ b/net/lwb/lwb-g-sync.c
+@@ -75,7 +75,7 @@
+ static pt_state_t pt_state_sync;
+ static pt_state_t pt_state_rr;
+ 
+-static lwb_status_t ret_status;
++static uint8_t ret_status; /* Boolean result from the schedule decoder. */
+ 
+ static volatile uint8_t is_active;
+ 
+@@ -149,6 +149,7 @@
+     LWB_DEBUG_GPIO_SET_PIN_1();
+ #endif
+ 
++    lwb_context.round_active = 1;
+     lwb_context.t_start = RTIMER_TIME(rt);
+ 
+     lwb_save_energest();
+@@ -186,7 +187,10 @@
+ #endif
+ 
+     /* Wait until start of the next LWB round */
+-    LWB_WAIT_UNTIL(lwb_context.t_start + OLD_SCHEDULE_INFO().round_period * RTIMER_SECOND);
++    lwb_context.next_round_ticks = lwb_context.t_start +
++        OLD_SCHEDULE_INFO().round_period * RTIMER_SECOND;
++    lwb_context.round_active = 0;
++    LWB_WAIT_UNTIL(lwb_context.next_round_ticks);
+ 
+   }
+ 
+@@ -231,7 +235,7 @@
+ 
+   lwb_pkt_header_t* pkt_header = (lwb_pkt_header_t*) lwb_context.txrx_buf;
+ 
+-  if (glossy_get_payload_len() < sizeof(lwb_sched_info_t)
++  if (glossy_get_payload_len() < sizeof(lwb_pkt_header_t) + sizeof(lwb_sched_info_t)
+       || pkt_header->pkt_type != LWB_PKT_TYPE_SCHED) {
+     return LWB_STATUS_FAIL;
+   }
+@@ -359,6 +363,7 @@
+     LWB_DEBUG_GPIO_SET_PIN_1();
+ #endif
+ 
++    lwb_context.round_active = 1;
+     lwb_context.t_start = RTIMER_TIME(rt);
+ 
+     if (lwb_context.sync_state == LWB_SYNC_STATE_BOOTSTRAP) {
+@@ -400,6 +405,12 @@
+       uint8_t* sched = LWB_PKT_DATA_PTR() + sizeof(lwb_sched_info_t);
+       uint8_t len = lwb_context.txrx_buf_len - sizeof(lwb_pkt_header_t) - sizeof(lwb_sched_info_t);
+       ret_status = lwb_sched_decompress(&CURRENT_SCHEDULE(), sched, len);
++      if(!ret_status ||
++         CURRENT_SCHEDULE_INFO().round_period == 0 ||
++         N_CURRENT_DATA_SLOTS() > LWB_SCHED_MAX_SLOTS) {
++        prepare_for_bootstrap();
++        continue;
++      }
+ 
+       lwb_set_n_my_slots();
+ 
+@@ -434,10 +445,12 @@
+     LWB_DEBUG_GPIO_UNSET_PIN_1();
+ #endif
+     /* Wait until start of the next LWB round */
+-    LWB_WAIT_UNTIL(lwb_context.t_sync_ref
++    lwb_context.next_round_ticks = lwb_context.t_sync_ref
+                    + (OLD_SCHEDULE_INFO().round_period * (uint32_t)RTIMER_SECOND)
+                    + ((int32_t)OLD_SCHEDULE_INFO().round_period * lwb_context.skew)
+-                   - lwb_context.t_sync_guard);
++                   - lwb_context.t_sync_guard;
++    lwb_context.round_active = 0;
++    LWB_WAIT_UNTIL(lwb_context.next_round_ticks);
+   }
+ 
+   is_active = 0;
+--- a/net/lwb/lwb-macros.h
++++ b/net/lwb/lwb-macros.h
+@@ -57,7 +57,7 @@
+ 
+ #define LWB_SET_POLL_FLAG(flag)         (lwb_context.poll_flags |= 1 << flag)
+ #define LWB_UNSET_POLL_FLAG(flag)       (lwb_context.poll_flags &= ~(1 << flag))
+-#define LWB_IS_SET_POLL_FLAG(flag)      (lwb_context.poll_flags && (1 << flag))
++#define LWB_IS_SET_POLL_FLAG(flag)      (lwb_context.poll_flags & (1u << (flag)))
+ 
+ /// @defgroup TX RX buffer macros
+ /// @{
+--- a/net/lwb/lwb-sched-compressor.c
++++ b/net/lwb/lwb-sched-compressor.c
+@@ -61,6 +61,9 @@
+   uint8_t req_len;
+ 
+   max_n_bits = 0;
++  if(LWB_GET_N_DATA_SLOTS(sched->sched_info.n_slots) > LWB_SCHED_MAX_SLOTS) {
++    return 0;
++  }
+   for (i = 0; i < LWB_GET_N_DATA_SLOTS(sched->sched_info.n_slots); i++) {
+     n_bits = get_n_bits(sched->slots[i]);
+     if (n_bits > max_n_bits) {
+@@ -110,19 +113,24 @@
+   uint8_t max_n_bits = 0;
+   uint32_t tmp = 0;
+   uint16_t bit_start = 0;
++  uint8_t n_slots = LWB_GET_N_DATA_SLOTS(sched->sched_info.n_slots);
++  uint16_t required;
+ 
+-  if (buf_len < 1) {
++  if (buf_len < 1 || n_slots > LWB_SCHED_MAX_SLOTS) {
+     return 0;
+   }
+ 
+   max_n_bits = buf[0];
+-
+-  if (COMP_BUFFER_LEN < ((max_n_bits * LWB_GET_N_DATA_SLOTS(sched->sched_info.n_slots) / 8) + 3)) {
++  if(max_n_bits > 16 || (n_slots && !max_n_bits)) {
++    return 0;
++  }
++  required = ((uint16_t)max_n_bits * n_slots + 7) / 8;
++  if(required + 1 > buf_len || required + 3 > COMP_BUFFER_LEN) {
+     return 0;
+   }
+ 
+   memset(comp_buf, 0, COMP_BUFFER_LEN);
+-  memcpy(comp_buf, buf + 1, buf_len - 1);
++  memcpy(comp_buf, buf + 1, required);
+ 
+   for (ui8_i = 0; ui8_i < LWB_GET_N_DATA_SLOTS(sched->sched_info.n_slots); ui8_i++) {
+ 
+@@ -132,8 +140,8 @@
+           | ((uint32_t) comp_buf[bit_start / 8 + 1] << 8)
+           | ((uint32_t) comp_buf[bit_start / 8 + 2] << 16);
+ 
+-    sched->slots[ui8_i] = (tmp >> (bit_start % 8)) & ((1 << max_n_bits) - 1);
++    sched->slots[ui8_i] = (tmp >> (bit_start % 8)) & ((1UL << max_n_bits) - 1UL);
+   }
+ 
+-  return LWB_GET_N_DATA_SLOTS(sched->sched_info.n_slots);
++  return 1;
+ }
+--- a/net/lwb/lwb-sched-compressor.h
++++ b/net/lwb/lwb-sched-compressor.h
+@@ -39,6 +39,8 @@
+ 
+ uint8_t lwb_sched_compress(lwb_schedule_t *sched, uint8_t* buf, uint8_t buf_len);
+ 
++/* Returns 1 on success, including a valid empty bootstrap schedule; 0 on
++ * malformed/truncated input. Not an lwb_status_t or a number of slots. */
+ uint8_t lwb_sched_decompress(lwb_schedule_t *sched, uint8_t* buf, uint8_t buf_len);
+ 
+ #endif /* __LWB_SHED_COMPRESSOR_H__ */
+--- a/net/lwb/lwb-scheduler-static.c
++++ b/net/lwb/lwb-scheduler-static.c
+@@ -78,7 +78,7 @@
+ static uint16_t max_bw;
+ 
+ /*------------------------------------------------------------------------------------------------*/
+-static void inline add_stream(uint16_t from_node_id, lwb_stream_req_t *p_req)
++static inline void add_stream(uint16_t from_node_id, lwb_stream_req_t *p_req)
+ {
+   /* We have a stream add request with an existing stream ID.
+    * This could happen due to the node has not received the stream acknowledgement.
+@@ -274,7 +274,7 @@
+ /*------------------------------------------------------------------------------------------------*/
+ void lwb_sched_update_data_slot_usage(uint8_t slot_index, uint8_t used)
+ {
+-  if (slot_index > 0 && slot_index < n_crr_sched_strms && crr_sched_strms[slot_index]) {
++  if (slot_index < n_crr_sched_strms && crr_sched_strms[slot_index]) {
+     if (used) {
+       crr_sched_strms[slot_index]->n_used++;
+       crr_sched_strms[slot_index]->n_cons_missed = 0;
+--- a/net/lwb/lwb.c
++++ b/net/lwb/lwb.c
+@@ -51,7 +51,7 @@
+ lwb_context_t lwb_context;
+ static struct process *init_process;
+ /*------------------------------------------------------------------------------------------------*/
+-uint8_t lwb_init(uint8_t mode, lwb_callbacks_t *callbacks)
++uint8_t lwb_init(lwb_mode_t mode, lwb_callbacks_t *callbacks)
+ {
+ 
+ #if LWB_DEBUG_GPIO
+@@ -64,6 +64,7 @@
+   lwb_context.lwb_mode = mode;
+   lwb_context.p_callbacks = callbacks;
+   lwb_context.enc = GLOSSY_ENC_OFF;
++  lwb_context.next_round_ticks = RTIMER_NOW() + RTIMER_SECOND;
+ 
+   glossy_init();
+   lwb_g_rr_init();
+@@ -233,7 +234,8 @@
+    * Hop-to-root is meaningful only at non-host nodes after at least one
+    * schedule/synchronization flood has been received. The Host starts the
+    * Glossy relay counter at 0 in this CC2538 port, so a direct Source->Host
+-   * link is relay_cnt=0 => hop_to_root=1.
++   * first direct reception normally has relay_cnt=0 => estimate=1. A late
++   * reception can give a larger value even with a direct physical link.
+    */
+   if(lwb_context.lwb_mode != LWB_MODE_SOURCE ||
+      lwb_context.sync_state == LWB_SYNC_STATE_BOOTSTRAP ||
+@@ -251,3 +253,19 @@
+   return (uint8_t)(relay_cnt + 1u);
+ }
+ #endif /* LWB_HOP_TO_ROOT_CONF */
++
++uint8_t lwb_time_is_fresh(void)
++{
++  return lwb_context.network_time_valid &&
++    (lwb_context.lwb_mode == LWB_MODE_HOST ||
++     lwb_context.sync_state == LWB_SYNC_STATE_SYNCED);
++}
++
++uint8_t lwb_background_allowed(uint16_t budget_ms)
++{
++  uint32_t left;
++  uint32_t required = ((uint32_t)budget_ms * RTIMER_SECOND) / 1000UL;
++  if(lwb_context.round_active) return 0;
++  left = (uint32_t)(lwb_context.next_round_ticks - RTIMER_NOW());
++  return left < 0x80000000UL && left > required;
++}
+--- a/net/lwb/lwb.h
++++ b/net/lwb/lwb.h
+@@ -90,6 +90,18 @@
+  */
+ uint32_t lwb_get_network_time_ticks(void);
+ 
++/* Strict measurement validity: Host anchored, or Source freshly SYNCED.
++ * Zero is a valid numeric timestamp; use this validity API separately. */
++uint8_t lwb_time_is_fresh(void);
++/* Enough idle time before the next round for a bounded background task. */
++uint8_t lwb_background_allowed(uint16_t budget_ms);
++/* Returns metadata for the SAME packet, only inside on_data(). */
++uint8_t lwb_get_last_rx_metadata(lwb_rx_metadata_t *out);
++uint8_t lwb_get_tx_queue_len(void);
++/* Call only in a guarded idle period, after measurement deadline. */
++uint8_t lwb_drop_tx_queue(void);
++void lwb_set_tx_observer(lwb_tx_observer_t observer);
++
+ /**
+  * @brief Request from LWB host to add a stream for the node.
+  * @param ipi Inter-packet interval in seconds.
+@@ -124,13 +136,15 @@
+ lwb_joining_state_t lwb_get_joining_state();
+ 
+ /**
+- * @brief Get current Glossy hop distance from this node to the LWB Host/Root.
++ * @brief Get a propagation estimate from the latest Host schedule flood.
+  *
+  * The value comes from the relay counter of the most recently received
+  * schedule/synchronization flood. In this CC2538 port the Host initiates
+  * the relay counter at 0, therefore hop_to_root = relay_cnt + 1.
+  *
+- * @return Number of RF hops to the Host/Root, or 0 if unavailable.
++ * Delayed reception/retransmissions can inflate this value. It is not a
++ * routing distance or evidence of the shortest physical path.
++ * @return Raw relay counter + 1, or 0 if unavailable.
+  */
+ #if LWB_HOP_TO_ROOT_CONF
+ uint8_t lwb_get_hop_count_to_host(void);

@@ -1,0 +1,15 @@
+[Unit]
+Description=LWB CC2538 Serial Gateway
+After=local-fs.target
+
+[Service]
+Type=simple
+User=pi
+EnvironmentFile=/etc/lwb-gateway/gateway.env
+WorkingDirectory=/opt/lwb-gateway
+ExecStart=/opt/lwb-gateway/.venv/bin/python /opt/lwb-gateway/lwb_gateway.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
