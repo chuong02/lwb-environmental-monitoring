@@ -85,7 +85,7 @@
 ### 4.1. Thu thập liên tục từ phần cứng Gateway Border-Router
 - **Log container `lwb-mqtt-consumer` ghi nhận chuỗi sự kiện thời gian thực:**
   ```text
-  Connecting to MQTT broker y3123070.ala.asia-southeast1.emqxsl.com:8883
+  Connecting to MQTT broker <deployment>.emqxsl.com:8883
   MQTT connected
   Subscribed: warehouse/site1/lwb/nodes/+/telemetry
   Stored event=8292 node=1 seq=2458

@@ -154,7 +154,7 @@
   Ứng dụng web biên dịch chuẩn xác, không còn bất kỳ lỗi render nào.
 
 ### 4.3. Đối chiếu 1:1 gói tin thực tế thu thập từ MQTT Broker EMQX
-- Đã thực hiện bắt trực tiếp (sniffing) luồng dữ liệu trên topic wildcard `warehouse/site1/lwb/#` từ Broker `y3123070.ala.asia-southeast1.emqxsl.com:8883`:
+- Đã thực hiện bắt trực tiếp (sniffing) luồng dữ liệu trên topic wildcard `warehouse/site1/lwb/#` từ Broker `<deployment>.emqxsl.com:8883`:
   ```text
   TOPIC: warehouse/site1/lwb/nodes/1/telemetry
   PAYLOAD: {

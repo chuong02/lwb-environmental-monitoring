@@ -28,7 +28,6 @@ venv/
 
 # Node / web
 node_modules/
-frontend/dist/
 
 # Flutter / Android / iOS
 .dart_tool/
@@ -58,6 +57,7 @@ obj_*/
 *.zip
 *.rar
 *.log
+!analysis/logs/**/*.log
 .DS_Store
 Thumbs.db
 

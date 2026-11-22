@@ -18,6 +18,7 @@ Node cảm biến (SOURCE) → relay → HOST (CC2538 nối UART) → `gateway` 
 | [lwb-cc2538dk/](lwb-cc2538dk/) | Firmware Contiki cho CC2538DK: `net/glossy`, `net/lwb`, ứng dụng `apps/lwb-cc2538dk-env` (cảm biến, OLED, gói perf), công cụ phân tích log, kiểm chứng | [README_VI.md](lwb-cc2538dk/README_VI.md), [VALIDATION.md](lwb-cc2538dk/VALIDATION.md) |
 | [gateway/lwb_source/](gateway/lwb_source/) | Gateway trên Raspberry Pi: đọc UART, SQLite, publish MQTT, xuất CSV, service systemd | [README.md](gateway/lwb_source/README.md) |
 | [backend/](backend/) | Backend Django (MQTT consumer, REST API, API mobile `/api/mobile/v1`), frontend React, Docker Compose | [README.md](backend/README.md), [README_WINDOWS.md](backend/README_WINDOWS.md) |
+| [analysis/](analysis/) | Log UART gốc của các phiên đo (`analysis/logs/`, 18 file) và script phân tích: `analyze_runs.py` (sinh `out/sessions.csv`, `out/per_source.csv`), `make_report.py` (hình, cần matplotlib), `build_summary.py` (`out/SUMMARY.md`) | [out/SUMMARY.md](analysis/out/SUMMARY.md) |
 | [mobileapp/lwb_mobile/](mobileapp/lwb_mobile/) | Ứng dụng Flutter xem dữ liệu node | [README.md](mobileapp/lwb_mobile/README.md) |
 | [mobileapp/lwb_setup/](mobileapp/lwb_setup/) | Gói cài đặt/đối chiếu bản mobile + API (script PowerShell, self-test) | [README.md](mobileapp/lwb_setup/LWB_Mobile/README.md) |
 
@@ -25,7 +26,7 @@ Node cảm biến (SOURCE) → relay → HOST (CC2538 nối UART) → `gateway` 
 
 - Firmware: Contiki (cây mã `$HOME/contiki`), toolchain `arm-none-eabi-gcc`, kit CC2538DK.
 - Gateway: Raspberry Pi (Python 3), cổng `/dev/ttyUSB0`, thư viện trong `gateway/lwb_source/requirements.txt`.
-- Backend: Python 3 + `requirements.txt` (hoặc Docker), PostgreSQL/SQLite, broker MQTT (EMQX); Node.js để build frontend.
+- Backend: Python 3 + `requirements.txt` (hoặc Docker), PostgreSQL/SQLite, broker MQTT (EMQX). Frontend đã build sẵn trong `backend/frontend/dist/`, nên chạy backend không cần Node.js; Node.js chỉ cần khi sửa giao diện.
 - Mobile: Flutter SDK, Android Studio/emulator.
 
 ## Hướng dẫn nhanh
@@ -39,10 +40,14 @@ Node cảm biến (SOURCE) → relay → HOST (CC2538 nối UART) → `gateway` 
 2. **Chạy gateway**: sao chép `gateway/lwb_source/gateway.env.example` thành file env riêng, điền thông tin broker,
    rồi làm theo `gateway/lwb_source/README.md` (service systemd `lwb-gateway`, `lwb-mqtt`).
 3. **Chạy backend**: `cd backend`, sao chép `.env.example` thành `.env` (đặt `DJANGO_SECRET_KEY`, thông tin MQTT/DB riêng),
-   rồi `docker compose up -d --build` hoặc theo `README_WINDOWS.md`.
+   rồi `docker compose up -d --build` hoặc theo `README_WINDOWS.md`. Sửa giao diện thì chạy `npm run build` trong `backend/frontend`
+   (cập nhật lại `dist/`).
 4. **Build app**: `cd mobileapp/lwb_mobile && flutter pub get && flutter run` (địa chỉ backend nhập trong app).
+5. **Phân tích log đo**: `cd analysis && python analyze_runs.py` (chỉ cần thư viện chuẩn của Python), rồi `python make_report.py` và
+   `python build_summary.py` nếu cần hình và `SUMMARY.md` (cần `matplotlib`). Script chỉ đọc `analysis/logs/`, không sửa log gốc.
 
-> Không commit `.env`, khóa, cơ sở dữ liệu hay log thô. Các giá trị mật khẩu trong repo chỉ là placeholder.
+> Không commit `.env`, khóa hay cơ sở dữ liệu. Log UART trong `analysis/logs/` là dữ liệu đo thô của đồ án (không chứa thông tin đăng nhập).
+> Các giá trị mật khẩu và tên broker trong repo chỉ là placeholder.
 
 ## Bản quyền và trích dẫn
 

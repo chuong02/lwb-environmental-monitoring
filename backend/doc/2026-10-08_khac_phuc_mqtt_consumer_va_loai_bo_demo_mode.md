@@ -64,7 +64,7 @@
 - **Lệnh thực hiện:** `docker restart lwb-mqtt-consumer` & `docker logs -t lwb-mqtt-consumer`
 - **Kết quả ghi nhận:**
   ```text
-  Connecting to MQTT broker y3123070.ala.asia-southeast1.emqxsl.com:8883
+  Connecting to MQTT broker <deployment>.emqxsl.com:8883
   MQTT connected
   Subscribed: warehouse/site1/lwb/nodes/+/telemetry
   ```

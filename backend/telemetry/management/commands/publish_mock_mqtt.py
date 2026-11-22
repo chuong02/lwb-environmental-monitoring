@@ -41,7 +41,7 @@ class Command(BaseCommand):
         count = options["count"]
         interval = options["interval"]
 
-        host = os.getenv("MQTT_HOST", "y3123070.ala.asia-southeast1.emqxsl.com")
+        host = os.getenv("MQTT_HOST", "YOUR-DEPLOYMENT.emqxsl.com")
         port = int(os.getenv("MQTT_PORT", "8883"))
         username = os.getenv("MQTT_USERNAME", "django-backend")
         password = os.getenv("MQTT_PASSWORD", "1")
